@@ -4,4 +4,5 @@ export interface Tradie {
   trade: string;
   location: string;
   bio: string;
+  user_id?: string; // Optional, added for auth
 }

@@ -1,6 +1,6 @@
-import { supabase } from "@/lib/db";
+import { supabase } from "@/app/lib/db";
 import TradieCard from "@/components/TradieCard";
-import { Tradie } from "@/lib/types";
+import { Tradie } from "@/app/lib/types";
 
 // Add revalidation for dynamic data
 export const revalidate = 60; // Revalidate every 60 seconds

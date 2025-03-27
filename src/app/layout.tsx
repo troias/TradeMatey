@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import "@styles/globals.css"; // Updated to match the alias for styles
+import "@styles/globals.css"; // Keep your global styles
 import Header from "@components/Header";
+import Providers from "./providers"; // Import the Providers component
 
 export const metadata: Metadata = {
   title: "Local Tradie Connector",
@@ -15,8 +16,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen bg-gray-100">
-        <Header />
-        <main className="container mx-auto p-4">{children}</main>
+        <Providers>
+          {" "}
+          {/* Wrap everything in SessionProvider */}
+          <Header />
+          <main className="container mx-auto p-4">{children}</main>
+        </Providers>
       </body>
     </html>
   );

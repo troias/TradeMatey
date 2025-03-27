@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
 export default function BookingForm() {
+  const { data: session } = useSession();
   const [jobDescription, setJobDescription] = useState("");
   const [location, setLocation] = useState("");
   const router = useRouter();
@@ -13,11 +15,16 @@ export default function BookingForm() {
     const res = await fetch("/api/book", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ jobDescription, location, userId: "dummy-user" }),
+      body: JSON.stringify({
+        jobDescription,
+        location,
+        userId: session?.user.id,
+      }),
     });
-
     if (res.ok) router.push("/tradies");
   };
+
+  if (!session) return <p>Please sign in to book</p>;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">

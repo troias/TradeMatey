@@ -1,26 +1,25 @@
-import { supabase } from "@/lib/db";
-import { Tradie } from "@/lib/types";
+// src/app/tradies/[id]/page.tsx
+import { supabase } from "@/app/lib/db"; // Adjust this import path based on your actual setup
+import { notFound } from "next/navigation"; // Next.js 15 built-in 404 handler
+import TradieProfileUI from "./TradieProfileUI.client"; // Client Component for UI rendering
 
 export default async function TradieProfile({
   params,
 }: {
   params: { id: string };
 }) {
+  // Fetch the tradie data from the database
   const { data: tradie, error } = await supabase
     .from("tradies")
-    .select("*")
+    .select("id, name, trade, location, bio, user_id")
     .eq("id", params.id)
     .single();
 
-  if (error || !tradie) return <p>Tradie not found</p>;
+  // Handle errors or missing tradie data
+  if (error || !tradie) {
+    return notFound(); // This triggers a 404 if no tradie is found
+  }
 
-  return (
-    <div className="max-w-2xl mx-auto py-8">
-      <h2 className="text-2xl font-bold">{tradie.name}</h2>
-      <p>
-        {tradie.trade} - {tradie.location}
-      </p>
-      <p>{tradie.bio}</p>
-    </div>
-  );
+  // Pass fetched data to Client Component for rendering
+  return <TradieProfileUI tradie={tradie} />;
 }
