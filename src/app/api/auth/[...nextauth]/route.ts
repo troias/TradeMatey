@@ -54,6 +54,10 @@ export const authOptions = {
           .single();
 
         if (data && !error) {
+          console.log("error:", error);
+          console.log("data:", data);
+          console.log("session:", session);
+
           session.user = {
             ...session.user,
             id: token.sub,
