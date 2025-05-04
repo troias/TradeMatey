@@ -11,6 +11,7 @@
   "dependencies": {
     "@auth/supabase-adapter": "^1.8.0",
     "@next-auth/supabase-adapter": "^0.2.1",
+    "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.49.3",
     "framer-motion": "^12.6.2",
     "next": "15.2.4",

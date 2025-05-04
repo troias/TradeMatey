@@ -1,7 +1,15 @@
-import type { NextConfig } from "next";
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    serverActions: true,
+  },
+  async redirects() {
+    return []
+  },
+  // This ensures middleware is applied only to protected pages
+  matcher: [
+    '/((?!_next|favicon.ico|login|signup|onboarding|unauthorized).*)'
+  ]
+}
 
-const nextConfig: NextConfig = {
-  /* config options here */
-};
-
-export default nextConfig;
+export default nextConfig
