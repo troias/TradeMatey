@@ -6,7 +6,7 @@ import { FcGoogle } from "react-icons/fc";
 export default function SignIn() {
   const handleGoogleSignIn = async () => {
     try {
-      await signIn("google", { callbackUrl: "/tradies" });
+      await signIn("google");
     } catch (error) {
       console.error("Sign-in error:", error);
     }

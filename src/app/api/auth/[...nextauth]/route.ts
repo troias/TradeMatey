@@ -56,7 +56,7 @@ const customAdapter = {
       .single();
 
     if (error || !data) {
-      console.error("getUser error:", error);
+      // console.error("getUser error:", error);
       return null;
     }
 
@@ -73,7 +73,7 @@ const customAdapter = {
       .single();
 
     if (error || !data) {
-      console.error("getUserByEmail error:", error);
+      // console.error("getUserByEmail error:", error);
       return null;
     }
 
@@ -99,7 +99,7 @@ const customAdapter = {
       .single();
 
     if (accountError || !account) {
-      console.error("getUserByAccount account error:", accountError);
+      // console.error("getUserByAccount account error:", accountError);
       return null;
     }
 
@@ -108,7 +108,7 @@ const customAdapter = {
       .single();
 
     if (error || !data) {
-      console.error("getUserByAccount user error:", error);
+      // console.error("getUserByAccount user error:", error);
       return null;
     }
 
@@ -130,7 +130,7 @@ const customAdapter = {
     id_token?: string;
   }): Promise<void> {
     if (!account.userId) {
-      console.error("linkAccount error: userId is missing from account object");
+      // console.error("linkAccount error: userId is missing from account object");
       throw new Error("User ID is missing; cannot link account");
     }
 
@@ -146,7 +146,7 @@ const customAdapter = {
     });
 
     if (error) {
-      console.error("linkAccount insert error:", error);
+      // console.error("linkAccount insert error:", error);
       throw new Error(`Failed to link account: ${error.message}`);
     }
   },
@@ -166,7 +166,7 @@ const customAdapter = {
       .single();
 
     if (error) {
-      console.error("createSession error:", error);
+      // console.error("createSession error:", error);
       throw new Error(`Failed to create session: ${error.message}`);
     }
 
@@ -185,7 +185,7 @@ const customAdapter = {
       .single();
 
     if (sessionError || !session) {
-      console.error("getSessionAndUser session error:", sessionError);
+      // console.error("getSessionAndUser session error:", sessionError);
       return null;
     }
 
@@ -198,7 +198,7 @@ const customAdapter = {
       await supabase.auth.admin.getUserById(session.user_id);
 
     if (userError || !user?.user) {
-      console.error("getSessionAndUser user error:", userError);
+      // console.error("getSessionAndUser user error:", userError);
       return null;
     }
 
@@ -210,7 +210,7 @@ const customAdapter = {
       .single();
 
     if (profileError) {
-      console.error("getSessionAndUser profile error:", profileError);
+      // console.error("getSessionAndUser profile error:", profileError);
     }
 
     return {
@@ -238,7 +238,7 @@ const customAdapter = {
       .single();
 
     if (error || !data) {
-      console.error("updateSession error:", error);
+      // console.error("updateSession error:", error);
       throw new Error(`Failed to update session: ${error.message}`);
     }
 
@@ -255,7 +255,7 @@ const customAdapter = {
       .eq("session_token", sessionToken);
 
     if (error) {
-      console.error("deleteSession error:", error);
+      // console.error("deleteSession error:", error);
       throw new Error(`Failed to delete session: ${error.message}`);
     }
   },
@@ -297,25 +297,25 @@ export const authOptions: NextAuthOptions = {
       }
 
       // Check if user exists in auth.users
-      console.log("Checking if user exists in auth.users...");
+
       const { data: existingUsers, error: listError } =
         await supabase.auth.admin.listUsers();
       if (listError) {
-        console.error("signIn list users error:", listError);
+        // console.error("signIn list users error:", listError);
         return false;
       }
 
       const existingUser = existingUsers.users.find((u) => u.email === email);
       if (existingUser) {
-        console.log(
-          `User ${email} already exists in auth.users with ID: ${existingUser.id}`
-        );
+        // console.log(
+        //   `User ${email} already exists in auth.users with ID: ${existingUser.id}`
+        // );
         user.id = existingUser.id;
         return true;
       }
 
       // Create the user in auth.users
-      console.log(`Creating new user in auth.users for email: ${email}`);
+      // console.log(`Creating new user in auth.users for email: ${email}`);
       const { data: newUser, error: createError } =
         await supabase.auth.admin.createUser({
           email: email,
@@ -332,9 +332,10 @@ export const authOptions: NextAuthOptions = {
         return false;
       }
 
-      console.log(
-        `Successfully created user ${email} with ID: ${newUser.user.id}`
-      );
+      // console.log(
+      //   `Successfully created user ${email} with ID: ${newUser.user.id}`
+      // );
+      // console.log(`Successfully created user ${email} with ID: ${newUser.user.id}`);
       user.id = newUser.user.id;
       return true;
     },
