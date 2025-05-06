@@ -296,26 +296,18 @@ export const authOptions: NextAuthOptions = {
         return false;
       }
 
-      // Check if user exists in auth.users
-
       const { data: existingUsers, error: listError } =
         await supabase.auth.admin.listUsers();
       if (listError) {
-        // console.error("signIn list users error:", listError);
         return false;
       }
 
       const existingUser = existingUsers.users.find((u) => u.email === email);
       if (existingUser) {
-        // console.log(
-        //   `User ${email} already exists in auth.users with ID: ${existingUser.id}`
-        // );
         user.id = existingUser.id;
         return true;
       }
 
-      // Create the user in auth.users
-      // console.log(`Creating new user in auth.users for email: ${email}`);
       const { data: newUser, error: createError } =
         await supabase.auth.admin.createUser({
           email: email,
@@ -328,14 +320,9 @@ export const authOptions: NextAuthOptions = {
 
       if (createError) {
         console.error("signIn create user error:", createError);
-        console.error("Error details:", JSON.stringify(createError, null, 2));
         return false;
       }
 
-      // console.log(
-      //   `Successfully created user ${email} with ID: ${newUser.user.id}`
-      // );
-      // console.log(`Successfully created user ${email} with ID: ${newUser.user.id}`);
       user.id = newUser.user.id;
       return true;
     },
@@ -343,9 +330,13 @@ export const authOptions: NextAuthOptions = {
       session.user = {
         ...session.user,
         id: user.id,
-        role: user.role || "client",
+        role: user.role ?? null,
+        hasProfile: user.hasProfile ?? false,
       };
       return session;
+    },
+    async redirect({ url, baseUrl }) {
+      return `${baseUrl}/dashboard`; // ⬅️ Redirects all users to dashboard
     },
   },
   secret: process.env.NEXTAUTH_SECRET,

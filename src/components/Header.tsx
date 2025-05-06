@@ -39,7 +39,12 @@ export default function Header() {
               </button>
             </>
           ) : (
-            <Link href="/auth/signin">Sign In</Link>
+            <Link
+              href="/auth/signin"
+              className="bg-white text-blue-600 font-semibold py-2 px-4 rounded-lg shadow hover:bg-gray-100 transition"
+            >
+              Get Started
+            </Link>
           )}
         </div>
       </nav>
