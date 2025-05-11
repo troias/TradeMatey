@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Tradie } from "@/app/lib/types";
+import { Tradie } from "@/lib/types";
 
 export default function TradieCard({ tradie }: { tradie: Tradie }) {
   return (

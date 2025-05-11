@@ -22,7 +22,7 @@
     "paths": {
       "@/*": ["./src/*"],
       "@components/*": ["./src/components/*"],
-      "@lib/*": ["./src/app/lib/*"],
+      "@lib/*": ["src/lib/*"],
       "@app/*": ["./src/app/*"],
       "@styles/*": ["./src/app/*"] // Correct alias for styles
     }

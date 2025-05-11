@@ -11,4 +11,11 @@ const nextConfig = {
   // matcher: ["/((?!_next|favicon.ico|login|signup|onboarding|unauthorized).*)"],
 };
 
+module.exports = {
+  i18n: {
+    locales: ["en ", "es ", "fr "],
+    defaultLocale: "en ",
+  },
+};
+
 export default nextConfig;
