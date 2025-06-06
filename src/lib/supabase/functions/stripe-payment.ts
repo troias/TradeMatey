@@ -1,26 +1,36 @@
-import Stripe from "stripe ";
-const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY ")!);
+import Stripe from "stripe";
+import { createClient } from "@/lib/supabase/server";
+
+const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!);
+const supabase = createClient();
+
 export async function handler(req: Request) {
-  const { amount, client_id, job_id } = await req.json();
+  const { amount, client_id, milestone_id } = await req.json();
+  const { data: milestone } = await supabase
+    .from("milestones")
+    .select("*, jobs!inner(region)")
+    .eq("id", milestone_id)
+    .single();
+
+  const commission =
+    milestone.jobs.region === "Regional"
+      ? Math.min(amount * 0.0333, 25)
+      : amount * 0.0333;
+
   const paymentIntent = await stripe.paymentIntents.create({
-    amount,
-    currency: "usd ",
-    metadata: { client_id, job_id },
+    amount: Math.round((amount + commission) * 100),
+    currency: "aud",
+    metadata: { client_id, milestone_id },
   });
-  const commissionFee = amount * 0.1; // 10% commission
-  await supabase.from("payments ").insert({
-    job_id,
+
+  await supabase.from("payments").insert({
+    milestone_id,
     client_id,
     amount,
-    status: "pending ",
-    stripe_payment_id: paymentIntent.id,
-    commission_fee: commissionFee,
+    status: "pending",
+    payment_intent_id: paymentIntent.id,
   });
-  await supabase.from("commissions ").insert({
-    source_type: "job ",
-    source_id: job_id,
-    amount: commissionFee,
-  });
+
   return new Response(
     JSON.stringify({ clientSecret: paymentIntent.client_secret })
   );

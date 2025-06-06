@@ -18,6 +18,12 @@ export default function TradieCard({ tradie }: { tradie: Tradie }) {
           📍 {tradie.location}
         </p>
 
+        {tradie.top_tradie && (
+          <span className="absolute top-2 right-2 bg-yellow-400 text-black text-xs px-2 py-1 rounded">
+            Top Tradie
+          </span>
+        )}
+
         <Link
           href={`/tradies/${tradie.id}`}
           className="mt-4 inline-block w-full rounded-lg bg-blue-600 px-4 py-2 text-center text-white font-medium transition-transform transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:bg-blue-500"

@@ -21,10 +21,11 @@
     ],
     "paths": {
       "@/*": ["./src/*"],
+
       "@components/*": ["./src/components/*"],
       "@lib/*": ["src/lib/*"],
       "@app/*": ["./src/app/*"],
-      "@styles/*": ["./src/app/*"] // Correct alias for styles
+      "@styles/*": ["./src/app/*"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
