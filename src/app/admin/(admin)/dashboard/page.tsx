@@ -3,11 +3,12 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
+import { Analytics } from "@/types";
 
 export default function AdminDashboard() {
-  const [analytics, setAnalytics] = useState<any>({});
+  const [analytics, setAnalytics] = useState<Analytics | null>(null);
 
-  const { data, error, isLoading } = useQuery({
+  const { data, error, isLoading } = useQuery<Analytics | null>({
     queryKey: ["analytics"],
     queryFn: async () => {
       const res = await fetch("/api/analytics");

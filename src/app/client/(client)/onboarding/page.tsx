@@ -99,15 +99,20 @@ export default function Onboarding() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      const { error } = await supabase
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({ role: "client" })
+        .eq("id", user!.id);
+      const { error: userError } = await supabase
         .from("users")
         .update({
           name: form.name,
           region: form.region,
           has_completed_onboarding: true,
+          roles: ["employee"],
         })
         .eq("id", user!.id);
-      if (error) {
+      if (profileError || userError) {
         toast.error("Failed to save profile");
       } else {
         await supabase.from("badges").insert([

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui";
+import { Button } from "@/components/ui/Button";
 
 export function Chatbot() {
   const [messages, setMessages] = useState<{ role: string; content: string }[]>(

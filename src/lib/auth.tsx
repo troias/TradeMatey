@@ -1,6 +1,5 @@
-// src/lib/auth.tsx
 import { NextAuthOptions } from "next-auth";
-import CredentialsProvider from "next-auth/providers/credentials";
+import Credentials from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import { SupabaseAdapter } from "@auth/supabase-adapter";
 import { createClient } from "@/lib/supabase/server";
@@ -21,13 +20,14 @@ export const authOptions: NextAuthOptions = {
         if (error || !data.user) return null;
         const { data: userData } = await supabase
           .from("users")
-          .select("id, email, role, has_completed_onboarding")
+          .select("id, email, roles, has_completed_onboarding, profiles(role)")
           .eq("id", data.user.id)
           .single();
         return {
           id: userData.id,
           email: userData.email,
-          role: userData.role,
+          roles: userData.roles,
+          profile_role: userData.profiles.role,
           has_completed_onboarding: userData.has_completed_onboarding ?? false,
         };
       },
@@ -44,15 +44,25 @@ export const authOptions: NextAuthOptions = {
         userId: user.id,
       });
       session.user.mfa_enabled = factors?.totp.length > 0;
+      session.user.roles = user.roles;
+      session.user.profile_role = user.profile_role;
       return session;
     },
     async redirect({ baseUrl, user }) {
       if (!user.has_completed_onboarding) {
-        return user.role === "tradie"
+        return user.profile_role === "tradie"
           ? `${baseUrl}/tradie/onboarding`
           : `${baseUrl}/client/onboarding`;
       }
-      return user.role === "tradie"
+      return user.roles.includes("admin")
+        ? `${baseUrl}/admin/dashboard`
+        : user.roles.includes("marketing")
+        ? `${baseUrl}/marketing/dashboard`
+        : user.roles.includes("finance")
+        ? `${baseUrl}/finance/dashboard`
+        : user.roles.includes("support")
+        ? `${baseUrl}/support-group/dashboard`
+        : user.profile_role === "tradie"
         ? `${baseUrl}/tradie/dashboard`
         : `${baseUrl}/client/dashboard`;
     },

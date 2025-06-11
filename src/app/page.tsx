@@ -4,16 +4,9 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 import { useQuery } from "@tanstack/react-query";
-import { Header, Footer } from "@/components";
-
-export const metadata = {
-  title: "TradeMatey - Find Trusted Tradies",
-  description:
-    "Post jobs, pay securely with milestones, and resolve disputes with TradeMatey.",
-};
 
 export default function Home() {
   const { data: session } = useSession();
@@ -43,7 +36,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Header />
       <main className="flex-grow">
         <section className="relative bg-blue-600 py-20">
           <div className="container mx-auto text-center text-white">
@@ -113,7 +105,6 @@ export default function Home() {
           </section>
         )}
       </main>
-      <Footer />
     </div>
   );
 }

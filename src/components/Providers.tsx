@@ -1,7 +1,12 @@
+// ./src/components/Providers.tsx
 "use client";
 
 import { SessionProvider } from "next-auth/react";
-import { createContext, useContext, ReactNode } from "react";
+import { createContext, useContext, ReactNode, useState } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"; // Add imports
+
+// Create a QueryClient instance
+const queryClient = new QueryClient();
 
 // Job Context
 interface JobContextType {
@@ -46,7 +51,11 @@ interface ProvidersProps {
 export function Providers({ children }: ProvidersProps) {
   return (
     <SessionProvider>
-      <JobProvider>{children}</JobProvider>
+      <QueryClientProvider client={queryClient}>
+        {" "}
+        {/* Add QueryClientProvider */}
+        <JobProvider>{children}</JobProvider>
+      </QueryClientProvider>
     </SessionProvider>
   );
 }

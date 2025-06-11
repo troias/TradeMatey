@@ -4,16 +4,17 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 import { useAuth } from "@/context/AuthContext";
+import { Post } from "@/types";
 
 export default function Community() {
   const { user } = useAuth();
-  const [posts, setPosts] = useState<any[]>([]);
+  const [posts, setPosts] = useState<Post[]>([]);
   const [newPost, setNewPost] = useState({ title: "", content: "" });
 
   const { data, error, isLoading } = useQuery({
     queryKey: ["community"],
     queryFn: async () => {
-      const res = await fetch("/api/community");
+      const res = await fetch("/api/ForumPost");
       if (!res.ok) throw new Error("Failed to fetch posts");
       return res.json();
     },
@@ -26,7 +27,7 @@ export default function Community() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = await fetch("/api/community", {
+    const res = await fetch("/api/ForumPost", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ user_id: user?.id, ...newPost }),
