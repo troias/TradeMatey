@@ -36,7 +36,7 @@ export default function BrowseTradies() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 m-4">
         Browse Tradies
       </h1>
       <div className="flex space-x-4">
