@@ -2,43 +2,40 @@
 
 import { useState, useEffect } from "react";
 import { Card, Button } from "@/components/ui";
-import { supabase } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
 
 export default function TradieDashboard() {
   const [jobs, setJobs] = useState<any[]>([]);
-  const [isTopTradie, setIsTopTradie] = useState(false);
+  const [tradieInfo, setTradieInfo] = useState<any>(null);
   const router = useRouter();
+  const supabase = createClient();
 
-  const fetchJobs = async () => {
+  const fetchDashboardData = async () => {
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    const { data, error } = await supabase
+    // Fetch tradie info
+    const { data: userData, error: userError } = await supabase
+      .from("users")
+      .select(
+        "region, trade, bio, top_tradie, referral_credits, average_rating, completed_jobs, has_completed_onboarding"
+      )
+      .eq("id", user!.id)
+      .single();
+    setTradieInfo(userData);
+    // Fetch jobs
+    const { data: jobsData, error: jobsError } = await supabase
       .from("jobs")
       .select("*, milestones(*), region")
       .eq("tradie_id", user!.id);
-    if (error) throw error;
-    setJobs(data || []);
+    setJobs(jobsData || []);
   };
 
   useEffect(() => {
-    const fetchUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      const { data } = await supabase
-        .from("users")
-        .select("top_tradie")
-        .eq("id", user!.id)
-        .single();
-      setIsTopTradie(data?.top_tradie || false);
-    };
-    fetchUser();
-  }, []);
-
-  useEffect(() => {
+    fetchDashboardData().catch((e) => toast.error(e.message));
+    // ...existing code...
     const channel = supabase
       .channel("milestones")
       .on(
@@ -52,16 +49,12 @@ export default function TradieDashboard() {
             toast.success(
               `Milestone "${payload.new.title}" ${payload.new.status}!`
             );
-            fetchJobs();
+            fetchDashboardData();
           }
         }
       )
       .subscribe();
     return () => supabase.removeChannel(channel);
-  }, []);
-
-  useEffect(() => {
-    fetchJobs().catch((e) => toast.error(e.message));
   }, []);
 
   const markCompleted = async (milestoneId: string) => {
@@ -74,7 +67,7 @@ export default function TradieDashboard() {
       toast.error("Failed to mark as completed");
     } else {
       toast.success("Milestone marked as completed!");
-      fetchJobs();
+      fetchDashboardData();
     }
   };
 
@@ -96,6 +89,41 @@ export default function TradieDashboard() {
       <p className="text-sm">
         Milestones follow QBCC-compliant 14+14 day payment timelines.
       </p>
+      {tradieInfo && (
+        <Card className="mb-6 p-4">
+          <h2 className="text-xl font-semibold mb-2">Your Profile</h2>
+          <p>
+            <strong>Region:</strong> {tradieInfo.region || "-"}
+          </p>
+          <p>
+            <strong>Trade:</strong> {tradieInfo.trade || "-"}
+          </p>
+          <p>
+            <strong>Bio:</strong> {tradieInfo.bio || "-"}
+          </p>
+          <p>
+            <strong>Top Tradie:</strong> {tradieInfo.top_tradie ? "Yes" : "No"}
+          </p>
+          <p>
+            <strong>Referral Credits:</strong>{" "}
+            {tradieInfo.referral_credits ?? 0}
+          </p>
+          <p>
+            <strong>Average Rating:</strong> {tradieInfo.average_rating ?? 0}
+          </p>
+          <p>
+            <strong>Completed Jobs:</strong> {tradieInfo.completed_jobs ?? 0}
+          </p>
+          <p>
+            <strong>Payout Method:</strong>{" "}
+            {tradieInfo.payoutMethod || "Not Set"}
+          </p>
+          <p>
+            <strong>Onboarding Complete:</strong>{" "}
+            {tradieInfo.has_completed_onboarding ? "Yes" : "No"}
+          </p>
+        </Card>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
         {jobs.map((job) => (
           <Card key={job.id} className="p-4">
@@ -104,7 +132,7 @@ export default function TradieDashboard() {
             <h3 className="text-lg mt-2">Milestones:</h3>
             <ul>
               {job.milestones.map((milestone: any) => {
-                const commissionRate = isTopTradie ? 0.0167 : 0.0333;
+                const commissionRate = tradieInfo?.top_tradie ? 0.0167 : 0.0333;
                 const commission =
                   job.region === "Regional"
                     ? Math.min(milestone.amount * commissionRate, 25)

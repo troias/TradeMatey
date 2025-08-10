@@ -8,20 +8,11 @@ import { motion } from "framer-motion";
 
 export default function Header() {
   const { data: session } = useSession();
-  const [clientSession, setClientSession] = useState(session);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  useEffect(() => {
-    async function refreshSession() {
-      const updatedSession = await getSession();
-      setClientSession(updatedSession);
-    }
-    refreshSession();
-  }, []);
-
   const dashboardLink = () => {
-    if (!clientSession?.user?.role) return "/";
-    switch (clientSession.user.role) {
+    if (!session?.user?.role) return "/";
+    switch (session.user.role) {
       case "tradie":
         return "/tradie/dashboard";
       case "client":
@@ -40,8 +31,8 @@ export default function Header() {
   };
 
   const profileLink = () => {
-    if (!clientSession?.user?.role) return "/";
-    switch (clientSession.user.role) {
+    if (!session?.user?.role) return "/";
+    switch (session.user.role) {
       case "tradie":
         return "/tradie/profile";
       case "client":
@@ -89,7 +80,7 @@ export default function Header() {
           >
             Post a Job
           </Link>
-          {clientSession ? (
+          {session ? (
             <div className="flex items-center space-x-4">
               <Link
                 href={dashboardLink()}
@@ -180,7 +171,7 @@ export default function Header() {
             >
               Post a Job
             </Link>
-            {clientSession ? (
+            {session ? (
               <>
                 <Link
                   href={dashboardLink()}

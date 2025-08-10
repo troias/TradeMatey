@@ -1,5 +1,8 @@
-import { supabase } from "./ lib/ supabase ";
+import { createClient } from "@/lib/supabase/client"; // or server if running on server
+
 import { HubSpot } from "hubspot -api ";
+
+const supabase = createClient();
 export default async (req: Request) => {
   const { data: users } = await supabase.from("users ").select("email , role ");
   const hubspot = new HubSpot({ apiKey: "" });

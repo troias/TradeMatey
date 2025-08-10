@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -9,42 +9,33 @@ import { createClient } from "@/lib/supabase/client";
 import { toast } from "react-hot-toast";
 import { Button } from "@/components/ui/Button";
 
-export default function TradieLoginPage() {
+export default function TradieRegisterPage() {
   const supabase = createClient();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [mfaRequired, setMfaRequired] = useState(false);
-  const [mfaCode, setMfaCode] = useState("");
-  const [factorId, setFactorId] = useState("");
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
   const router = useRouter();
 
-  const handleEmailLogin = async (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
       });
       if (error) throw error;
-
-      const { data: factors } = await supabase.auth.mfa.listFactors();
-      if (factors?.totp?.length) {
-        const id = factors.totp[0].id;
-        setFactorId(id);
-        setMfaRequired(true);
-        const { error: mfaError } = await supabase.auth.mfa.challenge({
-          factorId: id,
-        });
-        if (mfaError) throw mfaError;
-      } else {
-        toast.success("Login successful!");
-      }
+      toast.success(
+        "Registration successful! Check your email for confirmation."
+      );
+      router.push("/tradie/login");
     } catch (err: any) {
       setError(err.message);
       toast.error(err.message);
@@ -53,30 +44,14 @@ export default function TradieLoginPage() {
     }
   };
 
-  const handleMfaVerify = async () => {
-    try {
-      const { error } = await supabase.auth.mfa.verify({
-        factorId,
-        code: mfaCode,
-      });
-      if (error) throw error;
-      toast.success("MFA verified!");
-      setMfaRequired(false);
-    } catch (err: any) {
-      setError(err.message);
-      toast.error(err.message);
-    }
-  };
-
-  const handleOAuthLogin = async () => {
+  const handleGoogleRegister = async () => {
     setLoading(true);
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: `${window.location.origin}/auth/callback` },
+        options: { redirectTo: `${window.location.origin}/tradie/onboarding` },
       });
       if (error) throw error;
-      // After OAuth, Supabase will redirect to /auth/callback. You should handle the session and redirect to dashboard there.
     } catch (err: any) {
       setError(err.message);
       toast.error(err.message);
@@ -85,7 +60,7 @@ export default function TradieLoginPage() {
     }
   };
 
-  const handleMagicLink = async () => {
+  const handleMagicLinkRegister = async () => {
     setLoading(true);
     try {
       const { error } = await supabase.auth.signInWithOtp({
@@ -128,13 +103,21 @@ export default function TradieLoginPage() {
         className="relative bg-white dark:bg-gray-800 p-6 sm:p-8 md:p-10 rounded-xl shadow-2xl w-full max-w-md sm:max-w-lg z-10"
       >
         <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 dark:text-gray-100 mb-6 text-center">
-          Tradie Login
+          Tradie Registration
         </h1>
         <p className="text-sm text-gray-600 dark:text-gray-400 mt-4 text-center">
-          Sign in to access jobs with secure milestone payments (3.33%
-          commission, 1.67% for top tradies) and QBCC compliance. Verify your
-          license during onboarding.
+          Register to access jobs, milestone payments, and QBCC compliance.
+          Verify your license during onboarding.
         </p>
+        {error && (
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-red-500 mb-4 text-center"
+          >
+            {error}
+          </motion.p>
+        )}
         {magicLinkSent ? (
           <div className="text-center space-y-4">
             <FaEnvelope
@@ -154,16 +137,7 @@ export default function TradieLoginPage() {
           </div>
         ) : (
           <>
-            {error && (
-              <motion.p
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="text-red-500 mb-4 text-center"
-              >
-                {error}
-              </motion.p>
-            )}
-            <form onSubmit={handleEmailLogin} className="space-y-6">
+            <form onSubmit={handleRegister} className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                   Email
@@ -200,26 +174,12 @@ export default function TradieLoginPage() {
                   )}
                 </button>
               </div>
-              {mfaRequired && (
-                <div className="mt-4">
-                  <input
-                    type="text"
-                    value={mfaCode}
-                    onChange={(e) => setMfaCode(e.target.value)}
-                    placeholder="Enter 6-digit MFA code"
-                    className="w-full p-2 border rounded"
-                  />
-                  <Button onClick={handleMfaVerify} className="mt-2 w-full">
-                    Verify MFA
-                  </Button>
-                </div>
-              )}
               <Button
                 type="submit"
                 disabled={loading}
                 className="w-full bg-blue-600 hover:bg-blue-700"
               >
-                {loading ? "Signing In..." : "Sign In with Email"}
+                {loading ? "Registering..." : "Register"}
               </Button>
             </form>
             <div className="relative my-6">
@@ -234,44 +194,36 @@ export default function TradieLoginPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <Button
-                onClick={handleOAuthLogin}
+                onClick={handleGoogleRegister}
                 disabled={loading}
                 variant="outline"
                 className="flex items-center justify-center"
               >
-                <FaGoogle className="mr-2 text-red-500" /> Google
+                <FaGoogle className="mr-2 text-red-500" /> Register with Google
               </Button>
               <Button
-                onClick={handleMagicLink}
+                onClick={handleMagicLinkRegister}
                 disabled={loading || !email}
                 variant="outline"
                 className="flex items-center justify-center"
               >
-                <FaEnvelope className="mr-2 text-blue-500" /> Magic Link
+                <FaEnvelope className="mr-2 text-blue-500" /> Register with
+                Magic Link
               </Button>
-            </div>
-            <div className="mt-6 text-center space-y-2">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                New to TradeMatey?{" "}
-                <Link
-                  href="/tradie/register"
-                  className="text-blue-600 dark:text-blue-400 hover:underline"
-                >
-                  Register
-                </Link>
-              </p>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Forgot password?{" "}
-                <Link
-                  href="/tradie/reset-password"
-                  className="text-blue-600 dark:text-blue-400 hover:underline"
-                >
-                  Reset
-                </Link>
-              </p>
             </div>
           </>
         )}
+        <div className="mt-6 text-center space-y-2">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Already have an account?{" "}
+            <Link
+              href="/tradie/login"
+              className="text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              Login
+            </Link>
+          </p>
+        </div>
       </motion.div>
     </div>
   );

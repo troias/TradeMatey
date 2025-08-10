@@ -1,4 +1,5 @@
-import { supabase } from "./ lib/ supabase ";
+import { createClient } from "@/lib/supabase/client"; // or server if running on server
+const supabase = createClient();
 import { QuickBooks } from "quickbooks ";
 export default async (req: Request) => {
   const { data: payments } = await supabase

@@ -52,7 +52,7 @@ export default function Home() {
                   Post a Job
                 </Button>
               </Link>
-              <Link href="/tradie/login">
+              <Link href="/tradie/register">
                 <Button variant="outline">Join as a Tradie</Button>
               </Link>
             </div>
