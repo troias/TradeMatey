@@ -1,13 +1,11 @@
-import { createServerClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 
 export async function POST(request: Request) {
   try {
     const { title, description, budget, milestones, region } =
       await request.json();
-    const cookieStore = cookies();
-    const supabase = createServerClient(cookieStore);
+    const supabase = createClient();
 
     const {
       data: { user },
@@ -28,12 +26,71 @@ export async function POST(request: Request) {
       );
     }
 
+    // Basic input checks
+    if (!title || !description || !budget || !Array.isArray(milestones)) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
+    const numericBudget = Number(budget);
+    if (!Number.isFinite(numericBudget) || numericBudget <= 0) {
+      return NextResponse.json({ error: "Invalid budget" }, { status: 400 });
+    }
+
+    // Server guard: ensure milestones do not exceed 100% of budget
+    // Support either 'amount' provided or fallback to 'percentage'
+    type IncomingMilestone = {
+      title?: string;
+      description?: string;
+      percentage?: number | string;
+      amount?: number | string;
+      due_date?: string | null;
+    };
+    type NormalizedMilestone = {
+      title: string | undefined;
+      description: string | undefined;
+      amount: number;
+      due_date: string | null;
+    };
+
+    const normalizedMilestones: NormalizedMilestone[] = (
+      milestones as IncomingMilestone[]
+    ).map((m) => {
+      const pct = m.percentage != null ? Number(m.percentage) : null;
+      const amt =
+        m.amount != null
+          ? Number(m.amount)
+          : pct != null && Number.isFinite(pct)
+          ? (numericBudget * pct) / 100
+          : 0;
+      return {
+        title: m.title,
+        description: m.description,
+        amount: Math.round(amt * 100) / 100,
+        due_date: m.due_date ?? null,
+      };
+    });
+
+    const totalAmount = normalizedMilestones.reduce(
+      (sum: number, m: NormalizedMilestone) => sum + (Number(m.amount) || 0),
+      0
+    );
+    const epsilon = 0.01; // 1 cent tolerance
+    if (totalAmount - numericBudget > epsilon) {
+      return NextResponse.json(
+        { error: "Milestones exceed 100% of the budget" },
+        { status: 400 }
+      );
+    }
+
     const { data: job, error: jobError } = await supabase
       .from("jobs")
       .insert({
         title,
         description,
-        budget,
+        budget: numericBudget,
         client_id: user.id,
         status: "pending",
         payment_type: "milestone",
@@ -44,14 +101,16 @@ export async function POST(request: Request) {
 
     if (jobError) throw new Error(jobError.message);
 
-    const milestoneInserts = milestones.map((m: any) => ({
-      job_id: job.id,
-      title: m.title,
-      description: m.description,
-      amount: m.amount,
-      due_date: m.due_date,
-      status: "pending",
-    }));
+    const milestoneInserts = normalizedMilestones.map(
+      (m: NormalizedMilestone) => ({
+        job_id: job.id,
+        title: m.title,
+        description: m.description,
+        amount: m.amount,
+        due_date: m.due_date,
+        status: "pending",
+      })
+    );
 
     const { error: milestoneError } = await supabase
       .from("milestones")

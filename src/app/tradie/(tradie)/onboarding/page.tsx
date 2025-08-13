@@ -108,11 +108,15 @@ export default function Onboarding() {
         data: { user },
       } = await supabase.auth.getUser();
       console.log("Supabase user:", user);
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .update({ role: "tradie" })
-        .eq("id", user!.id);
-      console.log("Profile update error:", profileError);
+      // Insert tradie role into user_roles table for multi-role support
+      const { error: userRoleError } = await supabase
+        .from("user_roles")
+        .insert({ user_id: user!.id, role: "tradie" });
+      if (userRoleError) {
+        toast.error("Failed to assign tradie role");
+        return;
+      }
+      // Update user profile and onboarding status
       const { error: userError } = await supabase
         .from("users")
         .update({
@@ -120,50 +124,31 @@ export default function Onboarding() {
           trade: form.trade,
           bio: form.bio,
           has_completed_onboarding: true,
-          roles: ["employee"],
         })
         .eq("id", user!.id);
-      console.log("User update error:", userError);
-      if (profileError || userError) {
+      if (userError) {
         toast.error("Failed to save profile");
-      } else {
-        // Check if onboarding data was saved
-        const { data: verifyData, error: verifyError } = await supabase
-          .from("users")
-          .select("region, trade, bio, has_completed_onboarding")
-          .eq("id", user!.id)
-          .single();
-        console.log(
-          "Verification data:",
-          verifyData,
-          "Verification error:",
-          verifyError
-        );
-        if (
-          verifyError ||
-          !verifyData ||
-          verifyData.region !== form.region ||
-          verifyData.trade !== form.trade ||
-          verifyData.bio !== form.bio ||
-          !verifyData.has_completed_onboarding
-        ) {
-          toast.error("Onboarding data not saved correctly. Please try again.");
-          return;
-        }
-        await supabase.from("badges").insert([
-          {
-            user_id: user!.id,
-            badge: "Welcome Aboard",
-            earned_at: new Date().toISOString(),
-          },
-        ]);
-        await supabase.from("notifications").insert({
-          user_id: user!.id,
-          message: "You earned the 'Welcome Aboard' badge!",
-        });
-        toast.success("Onboarding completed!");
-        router.push("/tradie/dashboard");
+        return;
       }
+      // Optionally update profiles table role for legacy compatibility
+      await supabase
+        .from("profiles")
+        .update({ role: "tradie" })
+        .eq("id", user!.id);
+      // Award badge and notify user
+      await supabase.from("badges").insert([
+        {
+          user_id: user!.id,
+          badge: "Welcome Aboard",
+          earned_at: new Date().toISOString(),
+        },
+      ]);
+      await supabase.from("notifications").insert({
+        user_id: user!.id,
+        message: "You earned the 'Welcome Aboard' badge!",
+      });
+      toast.success("Onboarding completed!");
+      router.push("/tradie/dashboard");
     }
   };
 

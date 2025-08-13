@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/components/Providers";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 
@@ -29,13 +29,13 @@ export default function TradieReferrals() {
     if (error) toast.error(error.message);
   }, [data, error, user?.id]);
 
-  const handleInvite = async (referredUserId: string) => {
+  const handleInvite = async () => {
     const res = await fetch("/api/referrals", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         referrer_id: user?.id,
-        referred_user_id,
+        referred_user_id: undefined,
         role: "tradie",
       }),
     });

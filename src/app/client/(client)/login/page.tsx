@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { FaEye, FaEyeSlash, FaGoogle, FaEnvelope } from "react-icons/fa";
-import { supabase } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 import { toast } from "react-hot-toast";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/Button";
 
 export default function ClientLoginPage() {
   const [email, setEmail] = useState("");
@@ -20,13 +20,27 @@ export default function ClientLoginPage() {
   const [mfaCode, setMfaCode] = useState("");
   const [factorId, setFactorId] = useState("");
   const router = useRouter();
+  const supabase = useMemo(() => {
+    try {
+      const client = createClient();
+      const maybe: unknown = client;
+      if (!maybe || typeof maybe !== "object" || !("auth" in maybe)) {
+        throw new Error("Supabase client missing auth");
+      }
+      return client as typeof client;
+    } catch (e) {
+      console.error("Supabase init failed", e);
+      return null;
+    }
+  }, []);
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      if (!supabase) throw new Error("Supabase not configured");
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -44,10 +58,12 @@ export default function ClientLoginPage() {
         if (mfaError) throw mfaError;
       } else {
         toast.success("Login successful!");
+        router.replace("/select-role?source=client");
       }
-    } catch (err: any) {
-      setError(err.message);
-      toast.error(err.message);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Login failed";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -55,32 +71,39 @@ export default function ClientLoginPage() {
 
   const handleMfaVerify = async () => {
     try {
+      if (!supabase) throw new Error("Supabase not configured");
       const { error } = await supabase.auth.mfa.verify({
         factorId,
         code: mfaCode,
-      });
+        challengeId: "pending-challenge-id", // TODO capture real challengeId
+      } as unknown as Parameters<typeof supabase.auth.mfa.verify>[0]);
       if (error) throw error;
       toast.success("MFA verified!");
       setMfaRequired(false);
-    } catch (err: any) {
-      setError(err.message);
-      toast.error(err.message);
+      router.replace("/select-role?source=client");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "MFA verify failed";
+      setError(msg);
+      toast.error(msg);
     }
   };
 
   const handleOAuthLogin = async () => {
     setLoading(true);
     try {
+      if (!supabase) throw new Error("Supabase not configured");
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${window.location.origin}/auth/callback?requested_role=client`,
+          queryParams: { prompt: "select_account" },
         },
       });
       if (error) throw error;
-    } catch (err: any) {
-      setError(err.message);
-      toast.error(err.message);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Google auth failed";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -89,18 +112,20 @@ export default function ClientLoginPage() {
   const handleMagicLink = async () => {
     setLoading(true);
     try {
+      if (!supabase) throw new Error("Supabase not configured");
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: `${window.location.origin}/auth/callback?requested_role=client`,
         },
       });
       if (error) throw error;
       setMagicLinkSent(true);
       toast.success("Magic link sent! Check your email.");
-    } catch (err: any) {
-      setError(err.message);
-      toast.error(err.message);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Magic link failed";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -152,6 +177,12 @@ export default function ClientLoginPage() {
         ) : (
           <>
             {error && <p className="text-red-500 text-center">{error}</p>}
+            {!supabase && (
+              <p className="text-red-500 text-center text-sm">
+                Supabase client failed to initialize. Check
+                NEXT_PUBLIC_SUPABASE_URL & NEXT_PUBLIC_SUPABASE_ANON_KEY.
+              </p>
+            )}
 
             <form onSubmit={handleEmailLogin} className="space-y-4 mt-6">
               <div>

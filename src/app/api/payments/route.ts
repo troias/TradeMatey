@@ -1,13 +1,11 @@
-import { createServerClient } from "@/lib/supabase/server";
-import { stripe } from "@/lib/stripe";
+import { createClient } from "@/lib/supabase/server";
+import Stripe from "stripe";
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 
 export async function POST(request: Request) {
   try {
     const { milestoneId, amount } = await request.json();
-    const cookieStore = cookies();
-    const supabase = createServerClient(cookieStore);
+    const supabase = createClient();
 
     const {
       data: { user },
@@ -46,6 +44,9 @@ export async function POST(request: Request) {
         ? Math.min(amount * 0.0333, 25)
         : amount * 0.0333;
 
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
+      apiVersion: "2025-05-28.basil",
+    });
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round((amount + commission) * 100),
       currency: "aud",
@@ -57,6 +58,7 @@ export async function POST(request: Request) {
     await supabase.from("payments").insert({
       milestone_id: milestoneId,
       amount,
+      commission_fee: commission,
       payment_intent_id: paymentIntent.id,
       status: "pending",
       client_id: user.id,
@@ -80,8 +82,7 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   try {
     const { milestoneId } = await request.json();
-    const cookieStore = cookies();
-    const supabase = createServerClient(cookieStore);
+    const supabase = createClient();
 
     const {
       data: { user },
@@ -128,6 +129,9 @@ export async function PATCH(request: Request) {
       );
     }
 
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
+      apiVersion: "2025-05-28.basil",
+    });
     const paymentIntent = await stripe.paymentIntents.retrieve(
       payment.payment_intent_id
     );
@@ -155,9 +159,11 @@ export async function PATCH(request: Request) {
       .update({ status: "completed" })
       .eq("milestone_id", milestoneId);
 
-    await supabase
-      .from("badges")
-      .insert({ user_id: tradieId, badge: "First Job", earned_at: new Date() });
+    await supabase.from("badges").insert({
+      user_id: milestone.jobs.tradie_id,
+      badge: "First Job",
+      earned_at: new Date(),
+    });
 
     await supabase
       .from("milestones")

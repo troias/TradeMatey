@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
-import { useAuth } from "@/context/AuthContext";
-import { Post } from "@/types";
+import { useAuth } from "@/components/Providers";
+// import { Post } from "@/types"; // Post type not present; TODO define if needed
 
 export default function Community() {
   const { user } = useAuth();

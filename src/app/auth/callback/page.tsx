@@ -1,8 +1,8 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function AuthCallbackPage() {
+function AuthCallbackInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +40,8 @@ export default function AuthCallbackPage() {
         } else {
           setError("You must be logged in to access the dashboard.");
         }
-      } catch (e: any) {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (e) {
         setError("Authentication check failed.");
       }
     })();
@@ -54,5 +55,13 @@ export default function AuthCallbackPage() {
         <p>Authenticating... Please wait.</p>
       )}
     </div>
+  );
+}
+
+export default function AuthCallbackPage() {
+  return (
+    <Suspense>
+      <AuthCallbackInner />
+    </Suspense>
   );
 }

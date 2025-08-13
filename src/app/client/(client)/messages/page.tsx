@@ -1,13 +1,18 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/components/Providers";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 
 export default function ClientMessages() {
   const { user } = useAuth();
-  const [messages, setMessages] = useState<any[]>([]);
+  interface Message {
+    id: string;
+    content: string;
+    created_at?: string;
+  }
+  const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [selectedJobId, setSelectedJobId] = useState("");
 
@@ -46,7 +51,8 @@ export default function ClientMessages() {
       setNewMessage("");
       toast.success("Message sent!");
     },
-    onError: (err: any) => toast.error(err.message),
+    onError: (err: unknown) =>
+      toast.error(err instanceof Error ? err.message : "Failed"),
   });
 
   useEffect(() => {
@@ -112,11 +118,14 @@ export default function ClientMessages() {
             })
           }
           disabled={
-            !newMessage || !receiverId || !selectedJobId || mutation.isLoading
+            !newMessage ||
+            !receiverId ||
+            !selectedJobId ||
+            mutation.status === "pending"
           }
           className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-gray-400 dark:disabled:bg-gray-600 transition-colors"
         >
-          {mutation.isLoading ? "Sending..." : "Send"}
+          {mutation.status === "pending" ? "Sending..." : "Send"}
         </button>
       </div>
     </div>

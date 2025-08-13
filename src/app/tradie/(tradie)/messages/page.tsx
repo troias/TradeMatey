@@ -1,13 +1,18 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/components/Providers";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 
 export default function TradieMessages() {
   const { user } = useAuth();
-  const [messages, setMessages] = useState<any[]>([]);
+  interface Message {
+    id: string;
+    content: string;
+    created_at?: string;
+  }
+  const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [selectedJobId, setSelectedJobId] = useState("");
 
@@ -46,7 +51,10 @@ export default function TradieMessages() {
       setNewMessage("");
       toast.success("Message sent!");
     },
-    onError: (err: any) => toast.error(err.message),
+    onError: (err: unknown) => {
+      if (err instanceof Error) toast.error(err.message);
+      else toast.error("Failed");
+    },
   });
 
   useEffect(() => {

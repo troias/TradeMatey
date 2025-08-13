@@ -1,4 +1,4 @@
-import NextAuth, { NextAuthOptions, Session, User } from "next-auth";
+import NextAuth, { NextAuthOptions, Session, User } from "next-auth"; // kept for potential client pages still using next-auth
 import GoogleProvider from "next-auth/providers/google";
 import { SupabaseAdapter } from "@auth/supabase-adapter";
 import { createClient } from "@supabase/supabase-js";
@@ -280,7 +280,7 @@ declare module "next-auth" {
   }
 }
 
-export const authOptions: NextAuthOptions = {
+const authOptions: NextAuthOptions = {
   adapter: customAdapter,
   providers: [
     GoogleProvider({
@@ -327,12 +327,31 @@ export const authOptions: NextAuthOptions = {
       return true;
     },
     async session({ session, user }: { session: Session; user: User }) {
-      session.user = {
-        ...session.user,
-        id: user.id,
-        role: user.role ?? null,
-        hasProfile: user.hasProfile ?? false,
-      };
+      // Always fetch the latest profile role from Supabase
+      try {
+        const supabaseSession = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
+        const { data: profile, error } = await supabaseSession
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .single();
+        session.user = {
+          ...session.user,
+          id: user.id,
+          role: profile?.role ?? user.role ?? null,
+          hasProfile: user.hasProfile ?? false,
+        };
+      } catch (err) {
+        session.user = {
+          ...session.user,
+          id: user.id,
+          role: user.role ?? null,
+          hasProfile: user.hasProfile ?? false,
+        };
+      }
       return session;
     },
     async redirect({ url, baseUrl }) {

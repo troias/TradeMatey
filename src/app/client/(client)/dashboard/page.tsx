@@ -1,27 +1,34 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react"; // Add useRef
+import { useState, useEffect, useRef, useCallback } from "react"; // Add useRef
 import { Card, Button } from "@/components/ui";
-import { supabase } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 import { toast } from "react-hot-toast";
 import Chart from "chart.js/auto";
 
 export default function Dashboard() {
+  const supabase = createClient();
   const [jobs, setJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const chartRef = useRef<HTMLCanvasElement>(null);
   const chartInstanceRef = useRef<Chart | null>(null);
-  const [commissions, setCommissions] = useState([]);
+  type Fee = {
+    id: string;
+    amount: number;
+    source_id: string | null;
+    created_at: string;
+  };
+  const [commissions, setCommissions] = useState<Fee[]>([]);
   useEffect(() => {
     const fetchCommissions = async () => {
-      const res = await fetch("/api/commissions");
+      const res = await fetch("/api/fees");
       if (res.ok) setCommissions(await res.json());
       else toast.error("Failed to fetch commissions");
     };
     fetchCommissions();
   }, []);
 
-  const fetchJobs = async () => {
+  const fetchJobs = useCallback(async () => {
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -31,36 +38,15 @@ export default function Dashboard() {
       .eq("client_id", user!.id);
     if (error) throw error;
     setJobs(data || []);
-  };
+  }, [supabase]);
 
-  useEffect(() => {
-    const channel = supabase
-      .channel("bookings")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "bookings" },
-        () => fetchJobs()
-      )
-      .subscribe();
-    return () => supabase.removeChannel(channel);
-  }, []);
-
-  useEffect(() => {
-    const channel = supabase
-      .channel("milestones")
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "milestones" },
-        () => fetchJobs()
-      )
-      .subscribe();
-    return () => supabase.removeChannel(channel);
-  }, []);
+  // Removed broken supabase.channel subscriptions
 
   useEffect(() => {
     fetchJobs()
       .catch((e) => toast.error(e.message))
       .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -175,44 +161,54 @@ export default function Dashboard() {
                 <p>Status: {job.status}</p>
                 <h3 className="text-lg mt-2">Milestones:</h3>
                 <ul>
-                  {job.milestones.map((milestone: any) => (
-                    <li key={milestone.id} className="mt-1">
-                      {milestone.title}: {milestone.status} (Amount: A$
-                      {milestone.amount.toFixed(2)}, Commission: A$
-                      {(milestone.commission || 0).toFixed(2)})
-                      {milestone.status === "completed" && (
-                        <>
-                          <Button onClick={() => verifyMilestone(milestone.id)}>
-                            Verify
+                  {job.milestones.map(
+                    (milestone: {
+                      id: string;
+                      title: string;
+                      status: string;
+                      amount: number;
+                      commission?: number;
+                    }) => (
+                      <li key={milestone.id} className="mt-1">
+                        {milestone.title}: {milestone.status} (Amount: A$
+                        {milestone.amount.toFixed(2)}, Commission: A$
+                        {(milestone.commission || 0).toFixed(2)})
+                        {milestone.status === "completed" && (
+                          <>
+                            <Button
+                              onClick={() => verifyMilestone(milestone.id)}
+                            >
+                              Verify
+                            </Button>
+                            <Button
+                              variant="outline"
+                              onClick={() => disputeMilestone(milestone.id)}
+                            >
+                              Dispute
+                            </Button>
+                          </>
+                        )}
+                        {milestone.status === "verified" && (
+                          <Button onClick={() => payMilestone(milestone.id)}>
+                            Pay A$
+                            {(
+                              milestone.amount + (milestone.commission || 0)
+                            ).toFixed(2)}
                           </Button>
-                          <Button
-                            variant="outline"
-                            onClick={() => disputeMilestone(milestone.id)}
-                          >
-                            Dispute
-                          </Button>
-                        </>
-                      )}
-                      {milestone.status === "verified" && (
-                        <Button onClick={() => payMilestone(milestone.id)}>
-                          Pay A$
-                          {(
-                            milestone.amount + (milestone.commission || 0)
-                          ).toFixed(2)}
-                        </Button>
-                      )}
-                    </li>
-                  ))}
+                        )}
+                      </li>
+                    )
+                  )}
                 </ul>
               </Card>
             ))}
 
             <Card className="p-4 mt-4">
-              <h2 className="text-xl font-bold">Commissions</h2>
+              <h2 className="text-xl font-bold">Platform fees paid</h2>
               <ul>
                 {commissions.map((c) => (
                   <li key={c.id}>
-                    A${c.amount.toFixed(2)} ({c.source_type} {c.source_id}) -{" "}
+                    Fee A${c.amount.toFixed(2)} (job {c.source_id}) -{" "}
                     {new Date(c.created_at).toLocaleDateString()}
                   </li>
                 ))}

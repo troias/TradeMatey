@@ -1,46 +1,71 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabase/client";
-import { Button } from "@/components/ui/button";
-import QRCode from "qrcode.react";
+import { createClient } from "@/lib/supabase/client";
+import { Button } from "@/components/ui/Button";
+import { QRCodeSVG as QRCode } from "qrcode.react";
 import { toast } from "react-hot-toast";
 
 export default function Settings() {
-  const [qrCode, setQrCode] = useState("");
+  const supabase = createClient();
+  const [qrUri, setQrUri] = useState("");
   const [mfaCode, setMfaCode] = useState("");
+  const [factorId, setFactorId] = useState<string | null>(null);
 
   const enableMFA = async () => {
-    const { data: user } = await supabase.auth.getUser();
     const { data, error } = await supabase.auth.mfa.enroll({
-      userId: user.user!.id,
       factorType: "totp",
     });
     if (error) {
       toast.error(error.message);
     } else {
-      setQrCode(data.totp.qr_code);
+      if (data.type === "totp") {
+        setFactorId(data.id);
+        setQrUri(data.totp.uri);
+      } else {
+        toast.error("Unexpected factor type returned");
+      }
     }
   };
 
   const verifyMFA = async () => {
-    const { data: factors } = await supabase.auth.mfa.listFactors();
-    if (!factors?.totp?.length) {
-      toast.error("No TOTP factor found");
+    let effectiveFactorId = factorId;
+    if (!effectiveFactorId) {
+      const { data: factors, error: listError } =
+        await supabase.auth.mfa.listFactors();
+      if (listError) {
+        toast.error(listError.message);
+        return;
+      }
+      if (!factors?.totp?.length) {
+        toast.error("No TOTP factor found");
+        return;
+      }
+      effectiveFactorId = factors.totp[0].id;
+    }
+
+    const { data: challenge, error: challengeError } =
+      await supabase.auth.mfa.challenge({
+        factorId: effectiveFactorId!,
+      });
+    if (challengeError) {
+      toast.error(challengeError.message);
       return;
     }
-    const factorId = factors.totp[0].id;
-    const { error } = await supabase.auth.mfa.verify({
-      factorId,
+
+    const { error: verifyError } = await supabase.auth.mfa.verify({
+      factorId: effectiveFactorId!,
+      challengeId: challenge.id,
       code: mfaCode,
     });
-    if (error) {
-      toast.error(error.message);
-    } else {
-      toast.success("MFA enabled!");
-      setQrCode("");
-      setMfaCode("");
+    if (verifyError) {
+      toast.error(verifyError.message);
+      return;
     }
+
+    toast.success("MFA enabled!");
+    setQrUri("");
+    setMfaCode("");
   };
 
   return (
@@ -48,12 +73,12 @@ export default function Settings() {
       <h1 className="text-2xl font-bold">Settings</h1>
       <div className="mt-4">
         <h2 className="text-xl">Multi-Factor Authentication</h2>
-        {!qrCode ? (
+        {!qrUri ? (
           <Button onClick={enableMFA}>Enable MFA</Button>
         ) : (
           <div className="space-y-4">
             <p>Scan this QR code with an authenticator app:</p>
-            <QRCode value={qrCode} />
+            <QRCode value={qrUri} />
             <input
               type="text"
               value={mfaCode}

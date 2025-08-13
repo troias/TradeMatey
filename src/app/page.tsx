@@ -1,29 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+// import { useSession } from "next-auth/react"; // replaced by useAuth
+import { useAuth } from "@/components/Providers";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useQuery } from "@tanstack/react-query";
 
 export default function Home() {
-  const { data: session } = useSession();
-  const router = useRouter();
+  const { user, role } = useAuth();
 
-  useEffect(() => {
-    if (session?.user) {
-      const role = session.user.role;
-      const hasCompletedOnboarding =
-        session.user.has_completed_onboarding ?? false;
-      if (hasCompletedOnboarding) {
-        router.push(`/${role}/dashboard`);
-      } else {
-        router.push(`/${role}/onboarding`);
-      }
-    }
-  }, [session, router]);
+  // Removed automatic redirect so logged-in users can view the marketing home.
+  // If you still want to enforce onboarding, you can conditionally redirect only when not completed.
 
   const { data: analytics } = useQuery({
     queryKey: ["analytics"],
@@ -47,14 +35,25 @@ export default function Home() {
               QBCC support.
             </p>
             <div className="space-x-4">
-              <Link href="/client/post-job">
-                <Button className="bg-blue-500 hover:bg-blue-600">
-                  Post a Job
-                </Button>
-              </Link>
-              <Link href="/tradie/register">
-                <Button variant="outline">Join as a Tradie</Button>
-              </Link>
+              {!user && (
+                <>
+                  <Link href="/client/post-job">
+                    <Button className="bg-blue-500 hover:bg-blue-600">
+                      Post a Job
+                    </Button>
+                  </Link>
+                  <Link href="/tradie/register">
+                    <Button variant="outline">Join as a Tradie</Button>
+                  </Link>
+                </>
+              )}
+              {user && role && (
+                <Link href={`/${role}/dashboard`}>
+                  <Button className="bg-yellow-400 text-blue-900 hover:bg-yellow-500">
+                    Go to Dashboard
+                  </Button>
+                </Link>
+              )}
             </div>
           </div>
         </section>

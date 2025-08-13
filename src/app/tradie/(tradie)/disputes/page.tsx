@@ -1,14 +1,27 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, Button } from "@/components/ui";
-import { useAuth } from "@/context/AuthContext";
+import { Card } from "@/components/ui";
+import { useAuth } from "@/components/Providers";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 
 export default function TradieDisputes() {
   const { user } = useAuth();
-  const [disputes, setDisputes] = useState<any[]>([]);
+  interface DisputeJob {
+    title?: string;
+  }
+  interface DisputeUser {
+    name?: string;
+  }
+  interface Dispute {
+    id: string;
+    title?: string;
+    qbcc_dispute?: boolean;
+    jobs?: DisputeJob;
+    users?: DisputeUser;
+  }
+  const [disputes, setDisputes] = useState<Dispute[]>([]);
 
   const { data, error, isLoading } = useQuery({
     queryKey: ["disputes", user?.id],
@@ -38,10 +51,10 @@ export default function TradieDisputes() {
               {dispute.title}
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mt-2">
-              Job: {dispute.jobs.title}
+              Job: {dispute.jobs?.title}
             </p>
             <p className="text-gray-600 dark:text-gray-400">
-              Client: {dispute.users.name}
+              Client: {dispute.users?.name}
             </p>
             <p className="text-gray-600 dark:text-gray-400">
               Status:{" "}

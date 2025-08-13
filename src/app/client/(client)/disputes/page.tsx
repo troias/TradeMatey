@@ -2,13 +2,17 @@
 
 import { useState, useEffect } from "react";
 import { Card, Button } from "@/components/ui";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/components/Providers";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 
 export default function Disputes() {
   const { user } = useAuth();
-  const [disputes, setDisputes] = useState<any[]>([]);
+  interface Dispute {
+    id: string;
+    title?: string;
+  }
+  const [disputes, setDisputes] = useState<Dispute[]>([]);
 
   const { data, error, isLoading } = useQuery({
     queryKey: ["disputes", user?.id],

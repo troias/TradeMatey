@@ -1,8 +1,10 @@
-import { stripe } from "@/lib/stripe";
-import { supabase } from "@/lib/supabase/server";
+import { stripe } from "../../../lib/stripe";
+import { createServerClient } from "@/lib/supabase/server";
+import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   const { userId, planType } = await req.json();
+  const supabase = createServerClient();
   const session = await stripe.checkout.sessions.create({
     customer: (
       await supabase
@@ -16,12 +18,10 @@ export async function POST(req: Request) {
     success_url: `${process.env.NEXT_PUBLIC_URL}/success`,
     cancel_url: `${process.env.NEXT_PUBLIC_URL}/cancel`,
   });
-  await supabase
-    .from("premium")
-    .insert({
-      user_id: userId,
-      plan_type: planType,
-      subscription_status: "active",
-    });
+  await supabase.from("premium").insert({
+    user_id: userId,
+    plan_type: planType,
+    subscription_status: "active",
+  });
   return NextResponse.json({ url: session.url });
 }
