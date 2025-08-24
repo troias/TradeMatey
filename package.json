@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "jest",
+    "test:watch": "jest --watch"
   },
   "dependencies": {
     "@auth/supabase-adapter": "^1.8.0",
@@ -19,7 +21,6 @@
     "@supabase/supabase-js": "^2.50.0",
     "@tanstack/react-query": "^5.77.2",
     "chart.js": "^4.4.9",
-    "clsx": "^2.1.1",
     "framer-motion": "^12.15.0",
     "leo-profanity": "^1.8.0",
     "lucide-react": "^0.507.0",
@@ -32,21 +33,40 @@
     "react-hot-toast": "^2.5.2",
     "react-icons": "^5.5.0",
     "react-intersection-observer": "^9.16.0",
-    "stripe": "^18.1.1",
-    "tailwind-merge": "^3.3.1"
+    "stripe": "^18.1.1"
   },
   "devDependencies": {
+    "@babel/core": "^7.28.3",
+    "@babel/preset-env": "^7.28.3",
+    "@babel/preset-react": "^7.27.1",
+    "@babel/preset-typescript": "^7.27.1",
     "@eslint/eslintrc": "^3",
+    "@swc/jest": "^0.2.39",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.8.0",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/jest": "^30.0.0",
     "@types/next-auth": "^3.15.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/testing-library__jest-dom": "^6.0.0",
+    "@types/testing-library__react": "^10.2.0",
     "autoprefixer": "^10.4.21",
+    "babel-jest": "^30.0.5",
+    "clsx": "^2.1.1",
     "eslint": "^9",
     "eslint-config-next": "15.2.4",
+    "identity-obj-proxy": "^3.0.0",
+    "jest": "^30.0.5",
+    "jest-environment-jsdom": "^30.0.5",
     "postcss": "^8.5.3",
+    "service-worker-mock": "^2.0.5",
     "supabase": "^2.24.3",
+    "tailwind-merge": "^3.3.1",
     "tailwindcss": "^3.4.10",
+    "ts-jest": "^29.4.1",
     "typescript": "^5.8.3"
   }
 }

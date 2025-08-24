@@ -18,25 +18,36 @@ const HUBSPOT_ACCESS_TOKEN =
   process.env.HUBSPOT_PAT ||
   process.env.HUBSPOT_PAT_TOKEN ||
   "";
-const USE_OAUTH = Boolean(
+export const USE_OAUTH = Boolean(
   process.env.HUBSPOT_CLIENT_ID && process.env.HUBSPOT_CLIENT_SECRET
 );
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
-  console.error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
-  process.exit(1);
+  throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
 }
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const MAX_ATTEMPTS = 5;
-const metrics = { processed: 0, errors: 0, dlq: 0 };
+export const metrics = {
+  processed: 0,
+  syncs: 0,
+  errors: 0,
+  dlq: 0,
+  reset() {
+    this.processed = 0;
+    this.syncs = 0;
+    this.errors = 0;
+    this.dlq = 0;
+  }
+};
 
 // AES-256-GCM helpers (use a KMS or secure secret in production)
-function deriveKey(keyStr: string) {
+export function deriveKey(keyStr: string) {
   return createHash("sha256").update(keyStr).digest(); // 32 bytes
 }
-function encrypt(text: string, keyStr: string) {
+
+export function encrypt(text: string, keyStr: string) {
   const key = deriveKey(keyStr);
   const iv = randomBytes(12);
   const cipher = createCipheriv("aes-256-gcm", key, iv);
@@ -48,7 +59,8 @@ function encrypt(text: string, keyStr: string) {
   // store iv(12) + tag(16) + ciphertext
   return Buffer.concat([iv, tag, encrypted]).toString("base64");
 }
-function decrypt(enc: string, keyStr: string): string | null {
+
+export function decrypt(enc: string, keyStr: string): string | null {
   if (!enc) return null;
   try {
     const data = Buffer.from(enc, "base64");
@@ -149,115 +161,181 @@ async function refreshTokenIfNeeded(portal: PortalRow) {
   return portal;
 }
 
-async function lockAndProcess(limit = 10) {
-  const { data, error } = await supabase.rpc("lock_hubspot_sync_queue", {
-    p_limit: limit,
-  });
-  if (error) {
-    console.error("lock error", error);
-    return;
-  }
-  if (!data || !Array.isArray(data) || data.length === 0) return;
+export async function lockAndProcess(limit = 10) {
+  try {
+    const { data, error } = await supabase.rpc("lock_hubspot_sync_queue", {
+      p_limit: limit,
+    });
+    if (error) {
+      console.error("lock error", error);
+      metrics.errors++;
+      return;
+    }
+    if (!data || !Array.isArray(data) || data.length === 0) return;
 
-  for (const row of data) {
-    try {
-      const userId = row.user_id;
-      // skip if next_run_at is in future
-      if (row.next_run_at && new Date(row.next_run_at) > new Date()) continue;
-
-      const { data: user, error: uErr } = await supabase
-        .from("users")
-        .select("id, email, roles")
-        .eq("id", userId)
-        .single();
-      if (uErr || !user) continue;
-
-      // pick the first portal for sync; later we should map per-tenant
-      const { data: portals } = await supabase
-        .from("hubspot_portals")
-        .select("*")
-        .limit(1);
-      if (!portals || portals.length === 0) continue;
-      const portal = portals[0];
-
-      // refresh tokens if needed, and hydrate encrypted values
-      await refreshTokenIfNeeded(portal);
-
-      // attempt sync
-      let attempt = row.attempts || 0;
+    for (const row of data) {
+      metrics.processed++; // Count each row we process
       try {
-        // Implement actual HubSpot API call using portal.access_token
-        const contactRes = await upsertContact(
-          portal as {
-            access_token?: string;
-            portal_id?: string;
-            id?: string;
-            encrypted_access_token?: string;
-          },
-          String(user.email),
-          (user.roles || []) as string[]
-        );
-        console.log(`HubSpot response:`, contactRes?.status || "ok");
-        metrics.processed++;
+        const userId = row.user_id;
+        // skip if next_run_at is in future
+        if (row.next_run_at && new Date(row.next_run_at) > new Date()) {
+          metrics.processed--; // Don't count skipped rows
+          continue;
+        }
 
-        // remove queue entry (processed)
-        await supabase.from("hubspot_sync_queue").delete().eq("id", row.id);
-        // record metrics
-        const { error: metricErr } = await supabase.rpc(
-          "upsert_hubspot_worker_metric",
-          {
-            p_portal_id: portal.portal_id,
-            p_processed: 1,
-            p_errors: 0,
-            p_dlq: 0,
+        const { data: user, error: uErr } = await supabase
+          .from("users")
+          .select("id, email, roles")
+          .eq("id", userId)
+          .single();
+        if (uErr) {
+          console.error(`Failed to fetch user ${userId}:`, uErr);
+          metrics.errors++;
+          continue;
+        }
+        if (!user) {
+          console.error(`User ${userId} not found`);
+          metrics.errors++;
+          continue;
+        }
+
+        // pick the first portal for sync; later we should map per-tenant
+        const { data: portals, error: pErr } = await supabase
+          .from("hubspot_portals")
+          .select("*")
+          .limit(1);
+        if (pErr) {
+          console.error("Failed to fetch portal:", pErr);
+          metrics.errors++;
+          continue;
+        }
+        if (!portals || portals.length === 0) {
+          console.error("No HubSpot portal configured");
+          metrics.errors++;
+          continue;
+        }
+        const portal = portals[0];
+
+        // refresh tokens if needed, and hydrate encrypted values
+        try {
+          await refreshTokenIfNeeded(portal);
+        } catch (refreshError) {
+          console.error("Token refresh failed:", refreshError);
+          metrics.errors++;
+          continue;
+        }
+
+        // attempt sync
+        let attempt = row.attempts || 0;
+        try {
+          // Implement actual HubSpot API call using portal.access_token
+          const contactRes = await upsertContact(
+            portal,
+            String(user.email),
+            (user.roles || []) as string[]
+          );
+          console.log(`HubSpot response:`, contactRes?.status || "ok");
+          metrics.syncs++; // Increment successful syncs
+
+          // remove queue entry (processed)
+          const { error: delError } = await supabase
+            .from("hubspot_sync_queue")
+            .delete()
+            .eq("id", row.id);
+          
+          if (delError) {
+            console.error("Failed to delete queue entry:", delError);
+            metrics.errors++;
           }
-        );
-        if (metricErr) console.warn("metric upsert error", metricErr.message);
-      } catch (e) {
-        attempt++;
-        console.error("sync error", e);
-        metrics.errors++;
-        if (attempt >= MAX_ATTEMPTS) {
-          metrics.dlq++;
-          await supabase.from("hubspot_dlq").insert([
-            {
-              queue_id: row.id,
-              user_id: userId,
-              error: String(e),
-              attempts: attempt,
-              payload: row,
-            },
-          ]);
-          // inc dlq metric
-          const { error: metricErr2 } = await supabase.rpc(
+
+          // record metrics
+          const { error: metricErr } = await supabase.rpc(
             "upsert_hubspot_worker_metric",
             {
               p_portal_id: portal.portal_id,
-              p_processed: 0,
+              p_processed: 1,
               p_errors: 0,
-              p_dlq: 1,
+              p_dlq: 0,
             }
           );
-          if (metricErr2)
-            console.warn("metric upsert error", metricErr2.message);
-          await supabase.from("hubspot_sync_queue").delete().eq("id", row.id);
-        } else {
-          const backoffMs = Math.min(60_000, 1000 * 2 ** attempt);
-          const nextRun = new Date(Date.now() + backoffMs).toISOString();
-          await supabase
-            .from("hubspot_sync_queue")
-            .update({
-              attempts: attempt,
-              last_error: String(e),
-              next_run_at: nextRun,
-            })
-            .eq("id", row.id);
+          if (metricErr) {
+            console.warn("metric upsert error:", metricErr.message);
+            metrics.errors++;
+          }
+        } catch (e) {
+          attempt++;
+          console.error("sync error", e);
+          metrics.errors++;
+          
+          if (attempt >= MAX_ATTEMPTS) {
+            metrics.dlq++;
+            const { error: dlqError } = await supabase.from("hubspot_dlq").insert([
+              {
+                queue_id: row.id,
+                user_id: userId,
+                error: String(e),
+                attempts: attempt,
+                payload: row,
+              },
+            ]);
+            
+            if (dlqError) {
+              console.error("Failed to insert into DLQ:", dlqError);
+              metrics.errors++;
+            }
+
+            // inc dlq metric
+            const { error: metricErr2 } = await supabase.rpc(
+              "upsert_hubspot_worker_metric",
+              {
+                p_portal_id: portal.portal_id,
+                p_processed: 0,
+                p_errors: 0,
+                p_dlq: 1,
+              }
+            );
+            if (metricErr2) {
+              console.warn("metric upsert error:", metricErr2.message);
+              metrics.errors++;
+            }
+
+            // Delete from queue after moving to DLQ
+            const { error: delError } = await supabase
+              .from("hubspot_sync_queue")
+              .delete()
+              .eq("id", row.id);
+            
+            if (delError) {
+              console.error("Failed to delete queue entry:", delError);
+              metrics.errors++;
+            }
+          } else {
+            // Implement exponential backoff
+            const backoffMs = Math.min(60_000, 1000 * 2 ** attempt);
+            const nextRun = new Date(Date.now() + backoffMs).toISOString();
+            const { error: updateError } = await supabase
+              .from("hubspot_sync_queue")
+              .update({
+                attempts: attempt,
+                last_error: String(e),
+                next_run_at: nextRun,
+              })
+              .eq("id", row.id);
+            
+            if (updateError) {
+              console.error("Failed to update queue entry:", updateError);
+              metrics.errors++;
+            }
+          }
         }
+      } catch (err) {
+        console.error("processing error", err);
+        metrics.errors++;
       }
-    } catch (err) {
-      console.error("processing error", err);
-      metrics.errors++;
     }
+  } catch (e) {
+    console.error("lockAndProcess error:", e);
+    metrics.errors++;
   }
 }
 
