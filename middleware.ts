@@ -53,6 +53,31 @@ export async function middleware(req: NextRequest) {
     return res;
   }
 
+  // Staff role-protected areas (non-admin). Keep quiet on unauthorized.
+  const staffRolePrefixes: Array<{ prefix: string; role: string }> = [
+    { prefix: "/marketing", role: "marketing" },
+    { prefix: "/finance", role: "finance" },
+    { prefix: "/support-group", role: "support" },
+    { prefix: "/operations", role: "operations" },
+    { prefix: "/product", role: "product" },
+    { prefix: "/engineering", role: "engineering" },
+    { prefix: "/compliance", role: "compliance" },
+    { prefix: "/risk", role: "risk" },
+  ];
+  const staffMatch = staffRolePrefixes.find((r) => path.startsWith(r.prefix));
+  if (staffMatch) {
+    if (!user) return NextResponse.rewrite(new URL("/_not-found", req.url));
+    const { data: roles } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id);
+    const has = (roles || []).some(
+      (r: { role: string }) => r.role === staffMatch.role
+    );
+    if (!has) return NextResponse.rewrite(new URL("/_not-found", req.url));
+    return res;
+  }
+
   if (!user) return res; // Let unauthenticated requests pass elsewhere; pages can guard themselves
 
   // Load roles for this user

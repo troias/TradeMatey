@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Card } from "@/components/ui";
+import { createClient } from "@lib/supabase";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -12,7 +13,6 @@ export default function AdminLoginPage() {
   useEffect(() => {
     (async () => {
       try {
-        const { createClient } = await import("@/lib/supabase/client");
         const supabase = createClient();
         const {
           data: { user },

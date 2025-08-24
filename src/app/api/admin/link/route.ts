@@ -13,7 +13,7 @@ export async function POST() {
 
   // Check admin role
   const { data: roles } = await supabase
-    .from("user_roles")
+    .from("user_roles_if_migrated")
     .select("role")
     .eq("user_id", user.id);
   const isAdmin = (roles || []).some(

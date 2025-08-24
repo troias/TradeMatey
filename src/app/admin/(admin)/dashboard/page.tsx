@@ -23,6 +23,8 @@ export default function AdminDashboard() {
     let mounted = true;
     (async () => {
       try {
+        // background sync with CRM for current user
+        fetch("/api/admin/sync", { method: "POST" }).catch(() => {});
         // Optional signed token check
         const token = search.get("token");
         if (token) {

@@ -1,5 +1,5 @@
 import { NextAuthOptions } from "next-auth";
-import Credentials from "next-auth/providers/credentials";
+import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import { SupabaseAdapter } from "@auth/supabase-adapter";
 import { createClient } from "@/lib/supabase/server";
@@ -11,6 +11,10 @@ export const authOptions: NextAuthOptions = {
   }),
   providers: [
     CredentialsProvider({
+      credentials: {
+        email: { label: "Email", type: "text" },
+        password: { label: "Password", type: "password" },
+      },
       async authorize(credentials) {
         const supabase = createClient();
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -20,14 +24,21 @@ export const authOptions: NextAuthOptions = {
         if (error || !data.user) return null;
         const { data: userData } = await supabase
           .from("users")
-          .select("id, email, roles, has_completed_onboarding, profiles(role)")
+          .select("id, email, has_completed_onboarding, profiles(role)")
           .eq("id", data.user.id)
           .single();
+        if (!userData) return null;
+        const { data: roleRows } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", data.user.id);
+        const roles = (roleRows || []).map((r: { role: string }) => r.role);
         return {
           id: userData.id,
           email: userData.email,
-          roles: userData.roles,
-          profile_role: userData.profiles.role,
+          roles,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          profile_role: (userData as any)?.profiles?.role || null,
           has_completed_onboarding: userData.has_completed_onboarding ?? false,
         };
       },
@@ -40,31 +51,25 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async session({ session, user }) {
       const supabase = createClient();
-      const { data: factors } = await supabase.auth.mfa.listFactors({
-        userId: user.id,
-      });
-      session.user.mfa_enabled = factors?.totp.length > 0;
-      session.user.roles = user.roles;
-      session.user.profile_role = user.profile_role;
+      const { data: roleRows } = await supabase
+        .from("user_roles")
+        .select("role")
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .eq("user_id", (user as any).id);
+      const roles = (roleRows || []).map((r: { role: string }) => r.role);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (session.user as any).roles = roles;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (session.user as any).profile_role = (user as any).profile_role;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (session.user as any).has_completed_onboarding = (
+        user as any
+      ).has_completed_onboarding;
       return session;
     },
-    async redirect({ baseUrl, user }) {
-      if (!user.has_completed_onboarding) {
-        return user.profile_role === "tradie"
-          ? `${baseUrl}/tradie/onboarding`
-          : `${baseUrl}/client/onboarding`;
-      }
-      return user.roles.includes("admin")
-        ? `${baseUrl}/admin/dashboard`
-        : user.roles.includes("marketing")
-        ? `${baseUrl}/marketing/dashboard`
-        : user.roles.includes("finance")
-        ? `${baseUrl}/finance/dashboard`
-        : user.roles.includes("support")
-        ? `${baseUrl}/support-group/dashboard`
-        : user.profile_role === "tradie"
-        ? `${baseUrl}/tradie/dashboard`
-        : `${baseUrl}/client/dashboard`;
+    // Keep redirect logic minimal; client-side callback page handles nuanced redirects
+    async redirect({ baseUrl }) {
+      return baseUrl;
     },
   },
 };
