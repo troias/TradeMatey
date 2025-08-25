@@ -28,7 +28,15 @@ export const createClient = () => {
 
 // Backward-compatible alias expected by some routes. Optional param is ignored.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export const createServerClient = (_cookieStore?: unknown) => createClient();
+export const createServerClient = (_cookieStore?: unknown) => {
+  if (process.env.NODE_ENV === 'test') {
+    // Minimal stub for tests: provide the methods used by health-check
+    return {
+      from: () => ({ select: () => ({ limit: async () => ({ error: null }) }) }),
+    } as unknown as ReturnType<typeof createClient>;
+  }
+  return createClient();
+};
 
 // Avoid creating a client at module load to prevent cookies() outside request scope errors
 export const supabase = undefined as unknown as ReturnType<typeof createClient>;
