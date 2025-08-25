@@ -17,7 +17,7 @@ export async function GET_RAW() {
       const { error } = await supabase.from('users').select('id').limit(1);
       services.supabase = error ? 'error' : 'ok';
     }
-  } catch (e) {
+  } catch {
     services.supabase = 'error';
   }
 
