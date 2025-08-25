@@ -30,12 +30,19 @@ global.Headers = class Headers {
 
 (async () => {
   try {
-    // Use GET_RAW for direct testing without NextResponse wrapper
-    const mod = await import('../src/app/api/internal/health/route.ts');
-    const body = await mod.GET_RAW();
-    console.log('Health check result:', JSON.stringify(body, null, 2));
+    // Use GET for the health check
+    const mod = await import("../src/app/api/internal/health/route");
+    const res = await mod.GET();
+    
+    // Check if response has a JSON method and handle accordingly
+    if (res && typeof res.json === "function") {
+      const body = await res.json();
+      console.log("Health check result:", JSON.stringify(body, null, 2));
+    } else {
+      console.log("Unexpected response:", res);
+    }
   } catch (e) {
-    console.error('Error running health check', e);
+    console.error("Error running health check", e);
     process.exitCode = 1;
   }
 })();
