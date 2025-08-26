@@ -6,6 +6,7 @@ function AuthCallbackInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
+  const [redeemStatus, setRedeemStatus] = useState<string | null>(null);
 
   useEffect(() => {
     const errorParam = searchParams.get("error");
@@ -51,26 +52,58 @@ function AuthCallbackInner() {
           const desiredPrimary =
             requested === "tradie" || requested === "client" ? requested : null;
 
+          const inviteToken = searchParams.get("invite_token");
+
           const hasPrimary = roles.some(
             (r) => r === "tradie" || r === "client"
           );
           if (!hasPrimary) {
-            const target = desiredPrimary || "client"; // default to client
-            await supabase.rpc("ensure_primary_role", {
-              p_user_id: user.id,
-              p_role: target,
-            });
-            const { data: rolesData2 } = await supabase
-              .from("user_roles")
-              .select("role")
-              .eq("user_id", user.id);
-            roles = (rolesData2 || []).map((r: { role: string }) => r.role);
+            if (desiredPrimary) {
+              // Only auto-assign a primary role when explicitly requested as 'client' or 'tradie'
+              await supabase.rpc("ensure_primary_role", {
+                p_user_id: user.id,
+                p_role: desiredPrimary,
+              });
+              const { data: rolesData2 } = await supabase
+                .from("user_roles")
+                .select("role")
+                .eq("user_id", user.id);
+              roles = (rolesData2 || []).map((r: { role: string }) => r.role);
+            } else {
+              // No explicit requested primary role: don't default to 'client'.
+              // Redirect users without a primary role to role selection to avoid
+              // accidentally assigning sensitive roles (e.g. admin) implicitly.
+              router.replace("/select-role");
+              return;
+            }
           }
 
           // Fire-and-forget CRM upsert (after ensuring primary)
           fetch("/api/crm/upsert", { method: "POST" }).catch(() => {});
           if (roles.includes("admin")) {
-            router.replace("/admin/dashboard");
+            if (inviteToken) {
+              try {
+                const res = await fetch("/api/admin/redeem-invite", {
+                  method: "POST",
+                  headers: { "content-type": "application/json" },
+                  body: JSON.stringify({ token: inviteToken }),
+                });
+                const body: unknown = await res.json().catch(() => null);
+                const okValue =
+                  body &&
+                  typeof (body as Record<string, unknown>).ok === "boolean"
+                    ? (body as Record<string, unknown>).ok === true
+                    : false;
+                if (okValue) setRedeemStatus("Invite redeemed successfully");
+                else setRedeemStatus("Invite redeem attempted");
+              } catch {
+                setRedeemStatus("Invite redeem failed");
+              }
+              // show redeem result for 1.2s then continue
+              setTimeout(() => router.replace("/admin/dashboard"), 1200);
+            } else {
+              router.replace("/admin/dashboard");
+            }
             return;
           }
           // If tradie role present
@@ -106,6 +139,8 @@ function AuthCallbackInner() {
     <div className="flex items-center justify-center min-h-screen">
       {error ? (
         <p className="text-red-500">Authentication failed: {error}</p>
+      ) : redeemStatus ? (
+        <p className="text-green-600">{redeemStatus}</p>
       ) : (
         <p>Authenticating... Please wait.</p>
       )}
