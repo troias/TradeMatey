@@ -3,16 +3,19 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Card } from "@/components/ui";
-import { createClient } from "@lib/supabase";
+// createClient imported dynamically inside effects to avoid server-side cookie issues
 
 export default function AdminLoginPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [inviteValid, setInviteValid] = useState<boolean>(false);
+  const [inviteToken, setInviteToken] = useState<string>("");
 
   useEffect(() => {
     (async () => {
       try {
+        const { createClient } = await import("@/lib/supabase/server");
         const supabase = createClient();
         const {
           data: { user },
@@ -31,14 +34,47 @@ export default function AdminLoginPage() {
             return;
           }
         }
-      } catch {}
+      } catch {
+        // ignore
+      }
     })();
   }, [router]);
+
+  // If invited token is present in URL, validate it before enabling login
+  useEffect(() => {
+    (async () => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const token = params.get("invite_token");
+        if (!token) return;
+        setInviteToken(token);
+        const res = await fetch("/api/admin/validate-invite", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ token }),
+        });
+        const body = await res.json();
+        if (!body?.valid) {
+          setError("Invalid or used invite token.");
+          setInviteValid(false);
+        } else {
+          setInviteValid(true);
+        }
+      } catch {
+        setError("Failed to validate invite token.");
+      }
+    })();
+  }, []);
 
   const signInWithMagicLink = async (email: string) => {
     setLoading(true);
     setError(null);
     try {
+      if (!inviteValid) {
+        setError("An invite token is required to sign in as admin.");
+        setLoading(false);
+        return;
+      }
       const { createClient } = await import("@/lib/supabase/client");
       const supabase = createClient();
       const { error } = await supabase.auth.signInWithOtp({ email });
@@ -55,6 +91,11 @@ export default function AdminLoginPage() {
     setLoading(true);
     setError(null);
     try {
+      if (!inviteValid) {
+        setError("An invite token is required to sign in as admin.");
+        setLoading(false);
+        return;
+      }
       const { createClient } = await import("@/lib/supabase/client");
       const supabase = createClient();
       const { data, error } = await supabase.auth.signInWithOAuth({
@@ -85,6 +126,35 @@ export default function AdminLoginPage() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
+        <div className="pt-2">
+          <input
+            type="text"
+            placeholder="Invite token (optional)"
+            className="w-full border rounded px-3 py-2"
+            value={inviteToken}
+            onChange={(e) => setInviteToken(e.target.value)}
+          />
+          <Button
+            disabled={!inviteToken}
+            onClick={async () => {
+              setError(null);
+              try {
+                const res = await fetch("/api/admin/validate-invite", {
+                  method: "POST",
+                  headers: { "content-type": "application/json" },
+                  body: JSON.stringify({ token: inviteToken }),
+                });
+                const b = await res.json();
+                if (b?.valid) setInviteValid(true);
+                else setError("Invalid invite token");
+              } catch {
+                setError("Validation failed");
+              }
+            }}
+          >
+            Validate token
+          </Button>
+        </div>
         <Button
           disabled={loading || !email}
           onClick={() => signInWithMagicLink(email)}

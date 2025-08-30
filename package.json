@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "next lint",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "dev:sql-tests": "node ./dev/run_sql_tests.js",
+    "test:watch": "jest --watch",
+    "check:secrets": "node ./dev/check_secrets.js"
   },
   "dependencies": {
     "@auth/supabase-adapter": "^1.8.0",
@@ -67,6 +69,7 @@
     "tailwind-merge": "^3.3.1",
     "tailwindcss": "^3.4.10",
     "ts-jest": "^29.4.1",
+  "pg": "^8.11.0",
     "typescript": "^5.8.3"
   }
 }
