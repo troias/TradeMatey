@@ -2,6 +2,8 @@
 
 This file documents the admin-invite flow implemented in this repo, how admin users are created/redeemed, and how to run the SQL test harness and related helper scripts added under `dev/`.
 
+#test
+
 Keep secrets out of the repo. Never commit `SUPABASE_SERVICE_ROLE_KEY`, DB passwords, or similar values.
 
 ## Overview
