@@ -31,6 +31,17 @@ Primary pieces implemented:
 4. `redeem_admin_invite` acquires an advisory lock on the token, validates token exists/expiry/email binding, ensures `p_user_id` exists, optionally validates `p_actor_id` is an admin, inserts `admin` role idempotently, marks invite used (conditional update), and inserts an `admin_audit` row.
 5. Server endpoints map RPC SQLSTATE-coded exceptions to sensible HTTP statuses (404, 409, 410, 403, etc.).
 
+## Approval step (new)
+
+To require human approval before invites can be redeemed, this repo adds an approval state to invites:
+
+- Migration: `supabase/migrations/20250831_add_admin_invite_approval.sql` — adds `status`, `approved_by`, and `approved_at` to `admin_invites` (default `pending`).
+- Approve endpoint: `POST /api/admin/approve-invite` — admin-only endpoint that sets `status='approved'`, records `approved_by` and `approved_at`.
+- Admin UI: `src/app/admin/invites/page.tsx` — minimal page listing pending invites with an Approve button.
+
+Redeeming now requires an invite to be `approved`. The RPC `redeem_admin_invite` raises SQLSTATE `P0010` (`invite_not_approved`) if a user attempts to redeem an unapproved invite.
+
+
 ## SQLSTATE → HTTP mapping (server handlers)
 
 The server routes map the RPC error `code` to HTTP responses; the codes used in the migration and their mapping are:

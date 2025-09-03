@@ -55,9 +55,34 @@ export async function POST() {
       );
     }
 
+    // Safety: prevent self-service deletion of admin accounts to avoid accidental privilege loss.
+    const { data: rolesData, error: rolesErr } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id);
+    if (rolesErr) {
+      console.error("Failed to check user roles before deletion", rolesErr);
+      return NextResponse.json(
+        { error: "Failed to verify user roles" },
+        { status: 500 }
+      );
+    }
+    const isAdmin = (rolesData || []).some((r: { role: string }) => r.role === "admin");
+    if (isAdmin) {
+      // Require manual support path to remove admin users
+      return NextResponse.json(
+        {
+          error:
+            "Admin accounts cannot be deleted via this self-service endpoint. Please contact support to delete this account.",
+        },
+        { status: 403 }
+      );
+    }
+
     // Best-effort: remove related app rows (scoped to current user via RLS)
     const deletions = [
       supabase.from("clients").delete().eq("user_id", user.id),
+      // safe: user_roles deletion here only runs for non-admin users (we blocked admin above)
       supabase.from("user_roles").delete().eq("user_id", user.id),
       supabase.from("profiles").delete().eq("id", user.id),
       supabase.from("users").delete().eq("id", user.id),

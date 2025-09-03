@@ -53,63 +53,119 @@ export default function AdminDashboard() {
   if (!metrics) return <div className="text-center py-10">No data</div>;
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-        Admin Dashboard
-      </h1>
+    <div className="space-y-8">
+      <div className="flex items-center justify-between">
+        <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 dark:text-gray-100">
+          Admin Dashboard
+        </h1>
+        <div className="text-sm text-gray-500">Last updated: --</div>
+      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="p-6">
-          <h2 className="text-xl font-semibold">
-            Total Earnings (Platform Fees)
-          </h2>
-          <p className="text-3xl font-bold mt-2">
-            A${metrics.totalFees.toFixed(2)}
-          </p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card className="flex flex-col justify-between">
+          <div className="text-sm font-medium text-gray-500">
+            Total Earnings
+          </div>
+          <div className="mt-4 flex items-baseline gap-3">
+            <span className="text-2xl text-gray-500">A$</span>
+            <span className="text-4xl font-extrabold">
+              {metrics.totalFees.toFixed(2)}
+            </span>
+          </div>
+          <div className="text-xs text-gray-400 mt-3">Platform fees (30d)</div>
         </Card>
-        <Card className="p-6">
-          <h2 className="text-xl font-semibold">Gross Merchandise Volume</h2>
-          <p className="text-3xl font-bold mt-2">
-            A${metrics.totalGMV.toFixed(2)}
-          </p>
+
+        <Card className="flex flex-col justify-between">
+          <div className="text-sm font-medium text-gray-500">
+            Gross Merchandise Volume
+          </div>
+          <div className="mt-4">
+            <span className="text-3xl font-extrabold">
+              A${metrics.totalGMV.toFixed(2)}
+            </span>
+          </div>
+          <div className="text-xs text-gray-400 mt-3">Total GMV (30d)</div>
         </Card>
-        <Card className="p-6">
-          <h2 className="text-xl font-semibold">Active Users (30d)</h2>
-          <p className="text-3xl font-bold mt-2">{metrics.activeUsers30d}</p>
+
+        <Card className="flex flex-col justify-between">
+          <div className="text-sm font-medium text-gray-500">
+            Active Users (30d)
+          </div>
+          <div className="mt-4">
+            <span className="text-3xl font-extrabold">
+              {metrics.activeUsers30d}
+            </span>
+          </div>
+          <div className="text-xs text-gray-400 mt-3">Unique active users</div>
+        </Card>
+
+        <Card className="flex flex-col justify-between">
+          <div className="text-sm font-medium text-gray-500">ARPU</div>
+          <div className="mt-4">
+            <span className="text-3xl font-extrabold">
+              A${metrics.arpu.toFixed(2)}
+            </span>
+          </div>
+          <div className="text-xs text-gray-400 mt-3">
+            Average revenue per user (30d)
+          </div>
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="p-6">
-          <h2 className="text-xl font-semibold mb-2">Jobs by Status</h2>
-          <ul className="space-y-1">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-2">
+          <h3 className="text-lg font-semibold mb-4">Jobs by Status</h3>
+          <div className="space-y-3">
             {Object.entries(metrics.jobsByStatus).map(([status, count]) => (
-              <li key={status} className="flex justify-between">
-                <span className="capitalize">{status.replace(/_/g, " ")}</span>
-                <span>{count}</span>
-              </li>
+              <div key={status} className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 rounded-full bg-indigo-500/80" />
+                  <span className="capitalize text-sm text-gray-700">
+                    {status.replace(/_/g, " ")}
+                  </span>
+                </div>
+                <div className="text-sm font-medium text-gray-900">{count}</div>
+              </div>
             ))}
-          </ul>
+          </div>
         </Card>
-        <Card className="p-6">
-          <h2 className="text-xl font-semibold mb-2">
+
+        <Card>
+          <h3 className="text-lg font-semibold mb-4">
             Top Service Types by GMV
-          </h2>
-          <ul className="space-y-1">
+          </h3>
+          <ul className="space-y-3">
             {metrics.topServiceTypes.map((row) => (
-              <li key={row.name} className="flex justify-between">
-                <span>{row.name}</span>
-                <span>A${row.gmv.toFixed(2)}</span>
+              <li key={row.name} className="flex justify-between items-center">
+                <div>
+                  <div className="text-sm font-medium text-gray-800">
+                    {row.name}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {((row.gmv / Math.max(metrics.totalGMV, 1)) * 100).toFixed(
+                      1
+                    )}
+                    % of GMV
+                  </div>
+                </div>
+                <div className="text-sm font-semibold">
+                  A${row.gmv.toFixed(2)}
+                </div>
               </li>
             ))}
           </ul>
         </Card>
       </div>
 
-      <Card className="p-6">
-        <h2 className="text-xl font-semibold">ARPU (30d)</h2>
-        <p className="text-3xl font-bold mt-2">A${metrics.arpu.toFixed(2)}</p>
-      </Card>
+      <div className="grid grid-cols-1 gap-6">
+        <Card>
+          <h3 className="text-lg font-semibold mb-2">Notes</h3>
+          <p className="text-sm text-gray-600">
+            This dashboard surfaces high-level platform metrics. For deeper
+            analysis export data to your BI tools.
+          </p>
+        </Card>
+      </div>
     </div>
   );
 }

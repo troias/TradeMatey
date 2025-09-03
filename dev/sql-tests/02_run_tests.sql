@@ -18,7 +18,7 @@ SQLERRM;
 END $$;
 -- 2) user not found
 \ echo 'Test 2: user not found'
-INSERT INTO admin_invites (token, email, used)
+INSERT INTO admin_invites (token, invited_email, used)
 VALUES ('t-user-missing', NULL, false);
 DO $$ BEGIN PERFORM redeem_admin_invite(
     't-user-missing',
@@ -37,7 +37,7 @@ VALUES (
         '22222222-2222-2222-2222-222222222222',
         'x@example.com'
     );
-INSERT INTO admin_invites (token, email, used)
+INSERT INTO admin_invites (token, invited_email, used)
 VALUES ('t-success', 'x@example.com', false);
 DO $$ BEGIN PERFORM redeem_admin_invite(
     't-success',
@@ -71,7 +71,7 @@ VALUES (
         '33333333-3333-3333-3333-333333333333',
         'actor@example.com'
     );
-INSERT INTO admin_invites (token, email, used)
+INSERT INTO admin_invites (token, invited_email, used)
 VALUES ('t-actor', NULL, false);
 DO $$ BEGIN PERFORM redeem_admin_invite(
     't-actor',

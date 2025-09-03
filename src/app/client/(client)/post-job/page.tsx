@@ -137,7 +137,7 @@ export default function PostJob() {
           .select("region")
           .eq("id", user.id)
           .single();
-        setRegion((data as any)?.region || "");
+        setRegion((data as unknown as { region?: string })?.region || "");
       } catch {
         /* ignore */
       }
@@ -242,29 +242,56 @@ export default function PostJob() {
       };
     });
 
-    const res = await fetch("/api/jobs", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: data.title,
-        description: data.description,
-        budget: Number(data.budget),
-        client_id: user.id,
-        payment_type: "milestone",
-        milestones,
-      }),
-    });
+    try {
+      const res = await fetch("/api/jobs", {
+        method: "POST",
+        // Ensure cookies are sent so server-side auth (supabase auth.getUser)
+        // can read the session on the server. Use 'include' to be explicit.
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: data.title,
+          description: data.description,
+          budget: Number(data.budget),
+          client_id: user.id,
+          payment_type: "milestone",
+          milestones,
+        }),
+      });
 
-    if (res.ok) {
-      try {
-        localStorage.removeItem("post-job-draft");
-      } catch {
-        /* ignore */
+      if (res.ok) {
+        try {
+          localStorage.removeItem("post-job-draft");
+        } catch {
+          /* ignore */
+        }
+        toast.success("Job posted!");
+        router.push("/client/dashboard");
+        return;
       }
-      toast.success("Job posted!");
-      router.push("/client/dashboard");
-    } else {
-      toast.error("Failed to post job");
+
+      // Try to read server-provided JSON error for more detail
+      let payload: unknown = null;
+      try {
+        payload = await res.json();
+      } catch {
+        // ignore JSON parse errors
+      }
+      const bodyError =
+        payload &&
+        typeof payload === "object" &&
+        "error" in (payload as Record<string, unknown>)
+          ? String((payload as Record<string, unknown>).error)
+          : null;
+      const msg = bodyError || `Failed to post job: ${res.status}`;
+      console.warn("Post job failed", { status: res.status, body: payload });
+      toast.error(msg);
+    } catch (err: unknown) {
+      // Network or CORS error ('Failed to fetch')
+      console.error("Network error when posting job:", err);
+      toast.error(
+        "Network error: failed to reach server. Check your connection or dev server."
+      );
     }
   };
 
@@ -479,8 +506,11 @@ export default function PostJob() {
                       {errors.milestones?.[index]?.title && (
                         <p className="text-red-500 text-sm mt-1">
                           {
-                            (errors.milestones?.[index]?.title as any)
-                              ?.message as string
+                            (
+                              errors.milestones?.[index]?.title as unknown as {
+                                message?: string;
+                              }
+                            )?.message as string
                           }
                         </p>
                       )}
@@ -547,8 +577,12 @@ export default function PostJob() {
                       {errors.milestones?.[index]?.percentage && (
                         <p className="text-red-500 text-sm mt-1">
                           {
-                            (errors.milestones?.[index]?.percentage as any)
-                              ?.message as string
+                            (
+                              errors.milestones?.[index]
+                                ?.percentage as unknown as {
+                                message?: string;
+                              }
+                            )?.message as string
                           }
                         </p>
                       )}

@@ -22,7 +22,7 @@ describe('redeem_admin_invite RPC integration', () => {
     if (!client) return;
     // create a user and invite
     await client.query("INSERT INTO users (id, email) VALUES ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'a@a.com') ON CONFLICT DO NOTHING");
-    await client.query("INSERT INTO admin_invites (token, email, used) VALUES ('itest-token', 'a@a.com', false) ON CONFLICT DO NOTHING");
+  await client.query("INSERT INTO admin_invites (token, invited_email, used) VALUES ('itest-token', 'a@a.com', false) ON CONFLICT DO NOTHING");
 
     try {
       await client.query("SELECT redeem_admin_invite($1, $2)", ['itest-token', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa']);

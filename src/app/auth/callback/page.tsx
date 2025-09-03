@@ -47,33 +47,133 @@ function AuthCallbackInner() {
             .select("role")
             .eq("user_id", user.id);
           let roles = (rolesData || []).map((r: { role: string }) => r.role);
+          // Fallback to legacy users.roles array when user_roles table is empty
+          if (!roles || roles.length === 0) {
+            try {
+              const { data: userRow } = await supabase
+                .from("users")
+                .select("roles")
+                .eq("id", user.id)
+                .maybeSingle();
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const legacyRoles = (userRow as any)?.roles as
+                | string[]
+                | undefined;
+              if (legacyRoles && legacyRoles.length) {
+                roles = legacyRoles;
+              }
+            } catch {
+              // ignore fallback failure
+            }
+          }
 
-          const requested = searchParams.get("as");
+          // support both legacy `as` and `requested_role` params used by login pages
+          const requestedRole =
+            searchParams.get("requested_role") || searchParams.get("as");
           const desiredPrimary =
-            requested === "tradie" || requested === "client" ? requested : null;
+            requestedRole === "tradie" || requestedRole === "client"
+              ? requestedRole
+              : null;
 
           const inviteToken = searchParams.get("invite_token");
 
           const hasPrimary = roles.some(
             (r) => r === "tradie" || r === "client"
           );
-          if (!hasPrimary) {
-            if (desiredPrimary) {
-              // Only auto-assign a primary role when explicitly requested as 'client' or 'tradie'
-              await supabase.rpc("ensure_primary_role", {
-                p_user_id: user.id,
-                p_role: desiredPrimary,
-              });
-              const { data: rolesData2 } = await supabase
-                .from("user_roles")
-                .select("role")
-                .eq("user_id", user.id);
-              roles = (rolesData2 || []).map((r: { role: string }) => r.role);
+
+          // If user explicitly requested a role (eg. tradie) and they don't have it,
+          // attempt to add it. For tradie, require onboarding before granting.
+          if (desiredPrimary && !roles.includes(desiredPrimary)) {
+            if (desiredPrimary === "tradie") {
+              if (hasCompletedOnboarding) {
+                try {
+                  await supabase.rpc("ensure_primary_role", {
+                    p_user_id: user.id,
+                    p_role: "tradie",
+                  });
+                  const { data: rolesData2 } = await supabase
+                    .from("user_roles")
+                    .select("role")
+                    .eq("user_id", user.id);
+                  roles = (rolesData2 || []).map(
+                    (r: { role: string }) => r.role
+                  );
+                  // persist active role choice for Providers to pick up after redirect
+                  try {
+                    if (typeof window !== "undefined") {
+                      window.localStorage.setItem("activeRole", "tradie");
+                      document.cookie = `activeRole=${encodeURIComponent(
+                        "tradie"
+                      )}; Path=/; Max-Age=2592000; SameSite=Lax`;
+                    }
+                  } catch {}
+                } catch {
+                  // fallthrough to selection
+                }
+              } else {
+                router.replace("/tradie/onboarding");
+                return;
+              }
+            } else if (desiredPrimary === "client") {
+              try {
+                await supabase.rpc("ensure_primary_role", {
+                  p_user_id: user.id,
+                  p_role: "client",
+                });
+                const { data: rolesData2 } = await supabase
+                  .from("user_roles")
+                  .select("role")
+                  .eq("user_id", user.id);
+                roles = (rolesData2 || []).map((r: { role: string }) => r.role);
+                try {
+                  if (typeof window !== "undefined") {
+                    window.localStorage.setItem("activeRole", "client");
+                    document.cookie = `activeRole=${encodeURIComponent(
+                      "client"
+                    )}; Path=/; Max-Age=2592000; SameSite=Lax`;
+                  }
+                } catch {}
+              } catch {
+                // ignore
+              }
+            }
+          }
+
+          // If user has no primary role even after attempted assignment, send to select-role
+          if (
+            !hasPrimary &&
+            !roles.some((r) => r === "tradie" || r === "client")
+          ) {
+            router.replace("/select-role");
+            return;
+          }
+
+          // If the user explicitly requested to act as a tradie and doesn't yet
+          // have the tradie role, either add it immediately (if onboarding done)
+          // or redirect them into onboarding.
+          if (desiredPrimary === "tradie" && !roles.includes("tradie")) {
+            if (hasCompletedOnboarding) {
+              try {
+                // Use the DB RPC which is idempotent and refreshes the legacy users.roles
+                await supabase.rpc("ensure_primary_role", {
+                  p_user_id: user.id,
+                  p_role: "tradie",
+                });
+                // Re-read roles from user_roles (RPC will have run refresh_user_roles_array)
+                const { data: rolesData3 } = await supabase
+                  .from("user_roles")
+                  .select("role")
+                  .eq("user_id", user.id);
+                roles = (rolesData3 || []).map((r: { role: string }) => r.role);
+                router.replace("/tradie/dashboard");
+                return;
+              } catch {
+                // If RPC fails (permissions/policy), route the user to onboarding/selection
+                router.replace("/select-role");
+                return;
+              }
             } else {
-              // No explicit requested primary role: don't default to 'client'.
-              // Redirect users without a primary role to role selection to avoid
-              // accidentally assigning sensitive roles (e.g. admin) implicitly.
-              router.replace("/select-role");
+              router.replace("/tradie/onboarding");
               return;
             }
           }
@@ -108,6 +208,14 @@ function AuthCallbackInner() {
           }
           // If tradie role present
           if (roles.includes("tradie")) {
+            try {
+              if (typeof window !== "undefined") {
+                window.localStorage.setItem("activeRole", "tradie");
+                document.cookie = `activeRole=${encodeURIComponent(
+                  "tradie"
+                )}; Path=/; Max-Age=2592000; SameSite=Lax`;
+              }
+            } catch {}
             router.replace(
               hasCompletedOnboarding
                 ? "/tradie/dashboard"
@@ -116,6 +224,14 @@ function AuthCallbackInner() {
             return;
           }
           if (roles.includes("client")) {
+            try {
+              if (typeof window !== "undefined") {
+                window.localStorage.setItem("activeRole", "client");
+                document.cookie = `activeRole=${encodeURIComponent(
+                  "client"
+                )}; Path=/; Max-Age=2592000; SameSite=Lax`;
+              }
+            } catch {}
             router.replace("/client/dashboard");
             return;
           }

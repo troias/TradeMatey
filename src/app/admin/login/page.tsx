@@ -15,7 +15,7 @@ export default function AdminLoginPage() {
   useEffect(() => {
     (async () => {
       try {
-        const { createClient } = await import("@/lib/supabase/server");
+        const { createClient } = await import("@/lib/supabase/client");
         const supabase = createClient();
         const {
           data: { user },

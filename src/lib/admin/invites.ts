@@ -13,7 +13,7 @@ type MinimalSupabase = {
 export async function createInviteForEmail(email: string, supabaseClient?: MinimalSupabase) {
   const supabase = (supabaseClient ?? createServiceClient()) as MinimalSupabase;
   const token = `invite-${randomUUID()}`;
-  const { error } = await supabase.from("admin_invites").insert({ token, email, used: false });
+  const { error } = await supabase.from("admin_invites").insert({ token, invited_email: email, used: false });
   if (error) throw new Error("failed_to_insert");
   return token;
 }

@@ -62,6 +62,8 @@ export default function AccountPage() {
         .eq("id", user.id)
         .maybeSingle();
 
+      console.log("profileRow", { profileRow });
+
       // User roles table
       const { data: userRolesRows } = await supabase
         .from("user_roles")
@@ -114,6 +116,7 @@ export default function AccountPage() {
       );
 
       const primaryRole = profileRow?.role ?? mergedRoles[0] ?? null;
+      console.log("primaryRole", primaryRole);
 
       setData({
         email,
@@ -279,10 +282,14 @@ export default function AccountPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label
+                    htmlFor="service-type-select"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
                     Service Type
                   </label>
                   <select
+                    id="service-type-select"
                     value={serviceTypeIdEdit ?? ""}
                     onChange={(e) =>
                       setServiceTypeIdEdit(

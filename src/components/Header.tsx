@@ -16,6 +16,7 @@ export default function Header() {
   const dashboardLink = () => {
     // Prefer active role; fallback to first available role from context
     const activeRole = session?.user?.role || (userRoles?.[0] ?? null);
+    console.log("active Role", session);
     if (!activeRole) return "/";
     switch (activeRole) {
       case "tradie":

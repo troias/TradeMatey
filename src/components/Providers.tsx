@@ -79,6 +79,28 @@ function AuthProvider({ children }: { children: ReactNode }) {
   const [userRoles, setUserRoles] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // On mount, read any persisted activeRole so header can render immediately
+  // (we'll reconcile with DB shortly after).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const ls = window.localStorage.getItem("activeRole");
+      if (ls) {
+        setRoleState(ls);
+        setUserRoles((prev) => (prev && prev.length ? prev : [ls]));
+        return;
+      }
+      const m = document.cookie.match(/(?:^|; )activeRole=([^;]+)/);
+      const cookieRole = m ? decodeURIComponent(m[1]) : null;
+      if (cookieRole) {
+        setRoleState(cookieRole);
+        setUserRoles((prev) => (prev && prev.length ? prev : [cookieRole]));
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   // Persist active role in localStorage
   const setRole = (newRole: string) => {
     setRoleState(newRole);
@@ -102,8 +124,25 @@ function AuthProvider({ children }: { children: ReactNode }) {
           const roles = Array.from(
             new Set<string>(data.map((r: { role: string }) => r.role))
           );
-          if (roles.length > 0) {
-            setUserRoles(roles);
+          // Always include legacy primary role from profiles if present so users
+          // that still have a profiles.role don't lose access to that role.
+          let mergedRoles = roles;
+          try {
+            const { data: prof } = await supabase
+              .from("profiles")
+              .select("role")
+              .eq("id", uid)
+              .maybeSingle();
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const legacyRole = (prof as any)?.role as string | undefined;
+            if (legacyRole && !mergedRoles.includes(legacyRole)) {
+              mergedRoles = Array.from(new Set([...mergedRoles, legacyRole]));
+            }
+          } catch {
+            // ignore profile read failures
+          }
+          if (mergedRoles.length > 0) {
+            setUserRoles(mergedRoles);
             // Set active role from localStorage; if multiple and none saved, leave null (force selection)
             let activeRole: string | null = null;
             if (typeof window !== "undefined") {
@@ -113,10 +152,10 @@ function AuthProvider({ children }: { children: ReactNode }) {
                 activeRole = m ? decodeURIComponent(m[1]) : null;
               }
             }
-            if (activeRole && roles.includes(activeRole)) {
+            if (activeRole && mergedRoles.includes(activeRole)) {
               setRoleState(activeRole);
-            } else if (roles.length === 1) {
-              setRoleState(roles[0]);
+            } else if (mergedRoles.length === 1) {
+              setRoleState(mergedRoles[0]);
             } else {
               setRoleState(null);
             }

@@ -48,3 +48,25 @@ export async function POST(request: Request) {
   const url = `${base}/admin/accept?token=${token}`;
   return NextResponse.json({ url });
 }
+
+export async function GET(request: Request) {
+  const supabase = createServerClient();
+  const url = new URL(request.url);
+  const status = url.searchParams.get('status');
+  let query = supabase.from('admin_invites').select('token, invited_email, used, expires_at, status, invited_by');
+  if (status) query = query.eq('status', status);
+  const { data, error } = await query;
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  // normalize field names for client
+  const mapped = (data || []).map((r: unknown) => {
+    const row = r as Record<string, unknown>;
+    return {
+      token: String(row.token),
+      email: row.invited_email ? String(row.invited_email) : null,
+      used: Boolean(row.used),
+      expires_at: row.expires_at || null,
+      status: row.status || null,
+    };
+  });
+  return NextResponse.json(mapped);
+}

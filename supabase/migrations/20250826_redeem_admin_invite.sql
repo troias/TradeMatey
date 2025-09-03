@@ -20,6 +20,13 @@ IF NOT FOUND THEN RAISE EXCEPTION 'invalid_invite' USING ERRCODE = 'P0001';
 END IF;
 IF v_inv.used THEN RAISE EXCEPTION 'invite_already_used' USING ERRCODE = 'P0003';
 END IF;
+-- Require invite to be approved before redeeming
+IF (
+    SELECT COALESCE(status, 'pending')
+    FROM admin_invites
+    WHERE token = p_token
+) <> 'approved' THEN RAISE EXCEPTION 'invite_not_approved' USING ERRCODE = 'P0010';
+END IF;
 IF v_inv.expires_at IS NOT NULL
 AND v_inv.expires_at < now() THEN RAISE EXCEPTION 'invite_expired' USING ERRCODE = 'P0004';
 END IF;

@@ -66,6 +66,7 @@ export async function POST() {
   type HSContact = {
     properties?: {
       app_roles?: string;
+  remove_admin?: string | boolean;
       is_admin?: string | boolean;
       is_client?: string | boolean;
       is_tradie?: string | boolean;
@@ -150,12 +151,31 @@ export async function POST() {
         { status: 409 }
       );
     }
-  } else if (currentSet.has("admin") && !desiredRoles.has("admin")) {
+  }
+
+  // IMPORTANT: Do NOT remove admin automatically based on CRM data unless the
+  // CRM contact explicitly requests removal. This prevents accidental privilege
+  // loss when external data is incomplete. To remove admin via CRM, set the
+  // contact property `remove_admin` = 'true'. Only then will the admin role be removed.
+  const crmWantsRemoveAdmin = (contact?.properties?.remove_admin || "") === "true";
+  if (currentSet.has("admin") && !desiredRoles.has("admin") && crmWantsRemoveAdmin) {
     await svc
       .from("user_roles")
       .delete()
       .eq("user_id", user.id)
       .eq("role", "admin");
+    // record audit of CRM-initiated admin removal
+    try {
+      await svc.from("admin_audit").insert({
+        action: 'crm_remove_admin',
+        user_id: user.id,
+        actor: user.id,
+        metadata: { source: 'hubspot', contact_email: user.email }
+      });
+    } catch (e) {
+      // ignore audit failures but log to server console
+      console.warn('Failed to write admin_audit for CRM removal', e);
+    }
   }
 
   const bulkAdd = toAdd
