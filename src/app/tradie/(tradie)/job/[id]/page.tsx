@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
+import { motion } from "framer-motion";
 import { Card, Button } from "@/components/ui";
+import MilestoneBadge from "@/components/MilestoneBadge";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 
@@ -50,26 +52,85 @@ export default function TradieJobDetails({
             <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mt-4">
               Milestones
             </h2>
-            <ul className="mt-2 space-y-2">
+            <motion.ul
+              className="mt-3 space-y-3"
+              initial="hidden"
+              animate="visible"
+              variants={{
+                hidden: {},
+                visible: { transition: { staggerChildren: 0.05 } },
+              }}
+            >
               {job.milestones.map((milestone: any) => (
-                <li
+                <motion.li
                   key={milestone.id}
-                  className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                  className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg flex justify-between items-center"
+                  variants={{
+                    hidden: { opacity: 0, y: 8 },
+                    visible: { opacity: 1, y: 0 },
+                  }}
+                  whileHover={{ scale: 1.02 }}
+                  transition={{ type: "spring", stiffness: 260, damping: 20 }}
                 >
-                  {milestone.title}: {milestone.status} (${milestone.amount})
-                  {milestone.status === "pending" && (
-                    <Button
-                      onClick={() =>
-                        alert("Mark complete functionality coming soon!")
-                      }
-                      className="mt-2"
-                    >
-                      Mark Complete
-                    </Button>
-                  )}
-                </li>
+                  <div>
+                    <div className="font-semibold text-lg">
+                      {milestone.title}
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      ${milestone.amount}
+                    </div>
+                    <div className="mt-1">
+                      <MilestoneBadge
+                        status={milestone.status}
+                        size="sm"
+                        isCurrent={
+                          milestone.status !== "completed" &&
+                          milestone.status !== "verified"
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    {milestone.status !== "completed" &&
+                    milestone.status !== "verified" ? (
+                      <Button
+                        onClick={async () => {
+                          try {
+                            const res = await fetch(
+                              "/api/milestones/request-payment",
+                              {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  milestone_id: milestone.id,
+                                }),
+                                credentials: "include",
+                              }
+                            );
+                            const json = await res.json();
+                            if (!res.ok)
+                              throw new Error(json?.error || "Failed");
+                            toast.success(
+                              "Milestone marked complete — payment pending"
+                            );
+                            window.location.reload();
+                          } catch (e) {
+                            console.error(e);
+                            toast.error("Failed to request payment");
+                          }
+                        }}
+                      >
+                        Request payment
+                      </Button>
+                    ) : (
+                      <div className="text-sm text-gray-500">
+                        {milestone.status}
+                      </div>
+                    )}
+                  </div>
+                </motion.li>
               ))}
-            </ul>
+            </motion.ul>
           </>
         )}
       </Card>

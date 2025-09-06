@@ -487,7 +487,16 @@ async function main() {
   }
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+// Exported starter for programmatic control in tests or runtime.
+export async function startWorker() {
+  return main();
+}
+
+// Avoid starting the background loop when running inside Jest or NODE_ENV=test.
+// Tests can import and call `lockAndProcess` or `startWorker` explicitly.
+if (!process.env.JEST_WORKER_ID && process.env.NODE_ENV !== "test") {
+  main().catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
+}

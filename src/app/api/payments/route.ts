@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
   try {
-    const { milestoneId, amount } = await request.json();
+  const { milestoneId, amount, useSaved, paymentMethodId } = await request.json();
     const supabase = createClient();
 
     const {
@@ -15,7 +15,7 @@ export async function POST(request: Request) {
 
     const { data: milestone, error: milestoneError } = await supabase
       .from("milestones")
-      .select("*, jobs!inner(client_id, region)")
+      .select("*, jobs!inner(client_id)")
       .eq("id", milestoneId)
       .single();
 
@@ -29,6 +29,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
+    // Only allow client to pay when tradie has requested payment (status === 'pending')
+    // Tradie marks milestone as completed/requested via /api/milestones/request-payment which sets status='pending'
+    if (milestone.status !== "pending") {
+      return NextResponse.json({ error: "Milestone not ready for payment" }, { status: 400 });
+    }
+
     const { data: profile, error: profileError } = await supabase
       .from("users")
       .select("stripe_customer_id")
@@ -39,34 +45,48 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No payment method" }, { status: 400 });
     }
 
-    const commission =
-      milestone.jobs.region === "Regional"
-        ? Math.min(amount * 0.0333, 25)
-        : amount * 0.0333;
+  // Calculate commission; if region is not present default to standard rate
+  const region = (milestone.jobs as any)?.region;
+  const commission = region === "Regional" ? Math.min(amount * 0.0333, 25) : amount * 0.0333;
 
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
       apiVersion: "2025-05-28.basil",
     });
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round((amount + commission) * 100),
-      currency: "aud",
-      customer: profile.stripe_customer_id,
-      automatic_payment_methods: { enabled: true },
-      metadata: { milestoneId, commission: commission.toString() },
-    });
+    let paymentIntent: Stripe.PaymentIntent;
+    if (useSaved && paymentMethodId) {
+      // create and confirm immediately using saved PM attached to customer
+      paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round((amount + commission) * 100),
+        currency: "aud",
+        customer: profile.stripe_customer_id,
+        payment_method: paymentMethodId,
+        off_session: true,
+        confirm: true,
+        metadata: { milestoneId, commission: commission.toString() },
+      });
+    } else {
+      paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round((amount + commission) * 100),
+        currency: "aud",
+        customer: profile.stripe_customer_id,
+        automatic_payment_methods: { enabled: true },
+        metadata: { milestoneId, commission: commission.toString() },
+      });
+    }
 
     await supabase.from("payments").insert({
       milestone_id: milestoneId,
       amount,
       commission_fee: commission,
       payment_intent_id: paymentIntent.id,
-      status: "pending",
+      status: paymentIntent.status === "succeeded" ? "completed" : "pending",
       client_id: user.id,
     });
 
+    // set milestone status to pending unless payment succeeded immediately
     await supabase
       .from("milestones")
-      .update({ status: "pending", payment_intent_id: paymentIntent.id })
+      .update({ status: paymentIntent.status === "succeeded" ? "completed" : "pending", payment_intent_id: paymentIntent.id })
       .eq("id", milestoneId);
 
     return NextResponse.json({ clientSecret: paymentIntent.client_secret });

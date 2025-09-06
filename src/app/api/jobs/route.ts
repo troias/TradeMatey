@@ -190,3 +190,86 @@ export async function POST(request: Request) {
     );
   }
 }
+
+export async function GET(request: Request) {
+  try {
+    const url = new URL(request.url);
+    const jobId = url.searchParams.get("job_id");
+    const supabase = createClient();
+
+    if (!jobId) {
+      return NextResponse.json({ error: "job_id is required" }, { status: 400 });
+    }
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    // Ensure the requesting user owns the job (client_id) or otherwise is allowed.
+    const { data: jobOwner, error: ownerError } = await supabase
+      .from("jobs")
+      .select("client_id")
+      .eq("id", jobId)
+      .single();
+
+    if (ownerError) {
+      console.warn("GET /api/jobs owner lookup error:", ownerError);
+      return NextResponse.json({ error: "Job not found" }, { status: 404 });
+    }
+
+    if (!jobOwner || jobOwner.client_id !== user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const { data: jobRows, error: jobError } = await supabase
+      .from("jobs")
+      .select("*, milestones(*)")
+      .eq("id", jobId);
+
+    if (jobError) {
+      console.error("GET /api/jobs error:", jobError);
+      return NextResponse.json({ error: "Failed to fetch job" }, { status: 500 });
+    }
+
+    const single = (jobRows && Array.isArray(jobRows) && jobRows[0]) || null;
+
+    // Try to fetch tradie interest/acceptance rows for this job if table exists
+    let interests: unknown[] | null = null;
+    try {
+      const { data: interestData, error: interestError } = await supabase
+        .from("job_interest")
+        .select("id, job_id, tradie_id, status, created_at, updated_at, accepted_at, accepted_by")
+        .eq("job_id", jobId);
+      if (!interestError) interests = interestData ?? [];
+    } catch (e) {
+      console.debug("job_interest table missing or query failed", e);
+      interests = null;
+    }
+
+    // Try to count views if job_views exists
+    let viewCount: number | null = null;
+    try {
+      const { count, error: countErr } = await supabase
+        .from("job_views")
+        .select("id", { count: "exact", head: true })
+        .eq("job_id", jobId);
+      if (!countErr) viewCount = count ?? 0;
+    } catch (e) {
+      console.debug("job_views table missing or query failed", e);
+      viewCount = null;
+    }
+
+    if (single) {
+      // Attach metadata to the returned job row for client consumption
+      type JobRowAug = typeof single & { _meta?: { interests: unknown[] | null; viewCount: number | null } };
+      (single as JobRowAug)._meta = { interests, viewCount };
+    }
+
+    // Backward-compatible: return array of job rows (with _meta attached)
+    return NextResponse.json(jobRows ?? []);
+  } catch (err) {
+    console.error("GET /api/jobs unexpected error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}

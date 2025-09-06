@@ -29,20 +29,22 @@ afterEach(() => {
 
 test("renders audit rows, supports filtering and pagination", async () => {
   render(<AdminAuditPage />);
-  await waitFor(() =>
-    expect(screen.getByText(/Admin Audit/i)).toBeInTheDocument()
-  );
-  // default page should show some rows
-  expect(screen.getByText(/created|redeemed/i)).toBeInTheDocument();
+  await waitFor(() => expect(screen.getByText(/Admin Audit/i)).toBeInTheDocument());
+  // default page should show some rows — check for one of the mocked actions
+  await waitFor(() => {
+    const matches = screen.getAllByText(/created|redeemed/i);
+    expect(matches.length).toBeGreaterThan(0);
+  });
 
   // filter for 'redeemed'
   const input = screen.getByLabelText("action-filter") as HTMLInputElement;
   input.value = "redeemed";
   input.dispatchEvent(new Event("input", { bubbles: true }));
 
-  await waitFor(() =>
-    expect(screen.getByText(/redeemed/i)).toBeInTheDocument()
-  );
+  await waitFor(() => {
+    const matches = screen.getAllByText(/redeemed/i);
+    expect(matches.length).toBeGreaterThan(0);
+  });
 
   // click next page
   const next = screen.getByLabelText("next-page") as HTMLButtonElement;

@@ -5,67 +5,27 @@
 import { randomBytes, createHash } from 'crypto';
 
 // Types for our mocks
-type MockResponse = {
-  data: any;
-  error: null | Error;
-};
+type MockResponse = { data: any; error: null | Error };
 
 type MockSupabaseQuery = {
-  select: jest.Mock<MockSupabaseQuery>;
-  insert: jest.Mock<Promise<MockResponse>>;
-  update: jest.Mock<Promise<MockResponse>>;
-  delete: jest.Mock<Promise<MockResponse>>;
-  eq: jest.Mock<MockSupabaseQuery>;
-  single: jest.Mock<Promise<MockResponse>>;
-  limit: jest.Mock<Promise<MockResponse>>;
+  select: jest.Mock<any, any>;
+  insert: jest.Mock<any, any>;
+  update: jest.Mock<any, any>;
+  delete: jest.Mock<any, any>;
+  eq: jest.Mock<any, any>;
+  single: jest.Mock<any, any>;
+  limit: jest.Mock<any, any>;
 };
 
-type MockSupabaseClient = {
-  from: jest.Mock<MockSupabaseQuery>;
-  rpc: jest.Mock<Promise<MockResponse>>;
-};
+type MockSupabaseClient = { from: jest.Mock<any, any>; rpc: jest.Mock<any, any> };
 
 let mockSupabase: MockSupabaseClient;
 
 // Mock modules before importing worker
-jest.mock('@supabase/supabase-js', () => ({
-  createClient: jest.fn(() => mockSupabase),
-}));
+jest.mock('@supabase/supabase-js', () => ({ createClient: jest.fn(() => mockSupabase) }));
 
 describe('HubSpot Worker', () => {
-  type MockResponse = { data: any; error: null | Error };
-  type MockSupabaseQuery = {
-    select: jest.Mock;
-    insert: jest.Mock;
-    update: jest.Mock;
-    delete: jest.Mock;
-    eq: jest.Mock;
-    single: jest.Mock;
-    limit: jest.Mock;
-  };
-
-  let mockSupabase: { from: jest.Mock; rpc: jest.Mock };
-  type MockResponse = {
-    data: any;
-    error: null | Error;
-  };
-
-  type MockSupabaseQuery = {
-    select: jest.Mock<MockSupabaseQuery>;
-    insert: jest.Mock<Promise<MockResponse>>;
-    update: jest.Mock<Promise<MockResponse>>;
-    delete: jest.Mock<Promise<MockResponse>>;
-    eq: jest.Mock<MockSupabaseQuery>;
-    single: jest.Mock<Promise<MockResponse>>;
-    limit: jest.Mock<Promise<MockResponse>>;
-  };
-
-  type MockSupabaseClient = {
-    from: jest.Mock<MockSupabaseQuery>;
-    rpc: jest.Mock<Promise<MockResponse>>;
-  };
-
-  let mockSupabase: MockSupabaseClient;
+  // local mocks and types are declared above; reuse mockSupabase variable
 
   beforeEach(() => {
     // Set up environment variables for each test
@@ -115,6 +75,7 @@ describe('HubSpot Worker', () => {
 
     // Reset all mocks
     jest.resetModules();
+  });
 
   afterEach(() => {
     // Clean up environment variables
@@ -238,13 +199,16 @@ describe('HubSpot Worker', () => {
         from: jest.fn((table: string) => {
           const tableData = mockDb[table as keyof typeof mockDb];
           return {
+            // chainable select/eq/single for typical queries
             select: jest.fn().mockReturnThis(),
-            insert: jest.fn().mockResolvedValue({ data: [], error: null }),
-            update: jest.fn().mockResolvedValue({ data: [], error: null }),
-            delete: jest.fn().mockResolvedValue({ data: null, error: null }),
             eq: jest.fn().mockReturnThis(),
             single: jest.fn().mockResolvedValue(tableData),
-            limit: jest.fn().mockResolvedValue(tableData)
+            limit: jest.fn().mockResolvedValue(tableData),
+            // insert returns a resolved result (not typically chained)
+            insert: jest.fn().mockResolvedValue({ data: [], error: null }),
+            // update/delete are often chained with .eq(...) in code -> return an object whose .eq returns a resolved promise
+            update: jest.fn().mockImplementation(() => ({ eq: jest.fn().mockResolvedValue({ data: [], error: null }) })),
+            delete: jest.fn().mockImplementation(() => ({ eq: jest.fn().mockResolvedValue({ data: null, error: null }) })),
           };
         }),
         rpc: jest.fn().mockImplementation((name: string) => {
@@ -316,7 +280,10 @@ describe('HubSpot Worker', () => {
 
         return {
           ...baseTable,
-          ...(tableOverrides[table] || {})
+          ...(tableOverrides[table] || {}),
+          // Ensure delete/update are chainable by default for tables that may call .delete().eq or .update().eq
+          delete: (tableOverrides[table] && (tableOverrides[table] as any).delete) || jest.fn().mockImplementation(() => ({ eq: jest.fn().mockResolvedValue({ data: null, error: null }) })),
+          update: (tableOverrides[table] && (tableOverrides[table] as any).update) || jest.fn().mockImplementation(() => ({ eq: jest.fn().mockResolvedValue({ data: null, error: null }) })),
         };
       });
 
@@ -337,9 +304,13 @@ describe('HubSpot Worker', () => {
         return Promise.reject(new Error('Unknown URL'));
       });
 
-      await lockAndProcess(1);
-      expect(metrics.processed).toBe(1);
-      expect(metrics.errors).toBe(0);
+  // temporarily restore console.error to capture any processing errors for debugging
+  if (console.error && typeof (console.error as any).restore === 'function') (console.error as any).restore();
+  await lockAndProcess(1);
+  // re-mute
+  if (console.error && typeof (console.error as any).restore === 'function') (console.error as any).restore();
+  expect(metrics.processed).toBe(1);
+  expect(metrics.errors).toBe(0);
     });
 
     it('should handle processing errors', async () => {
@@ -355,8 +326,13 @@ describe('HubSpot Worker', () => {
         error: null
       });
 
-      await lockAndProcess(1);
-      expect(metrics.errors).toBeGreaterThan(0);
+  // Force fetch to throw so upsertContact fails and metrics.errors increments
+  // This simulates a network or API error during processing
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (global as any).fetch = jest.fn().mockRejectedValue(new Error('network error'));
+
+  await lockAndProcess(1);
+  expect(metrics.errors).toBeGreaterThan(0);
     });
   });
 });
