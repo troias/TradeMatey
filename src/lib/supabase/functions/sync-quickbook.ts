@@ -1,7 +1,7 @@
-import { createClient } from "@/lib/supabase/client"; // or server if running on server
-const supabase = createClient();
+import { createClient } from "@/lib/supabase/server";
 
 export default async function handler() {
+  const supabase = createClient();
   const { data } = await supabase.from("payments").select("amount, status");
   const payments = Array.isArray(data) ? data as unknown[] : [];
   try {

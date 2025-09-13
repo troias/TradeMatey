@@ -9,6 +9,12 @@ jobs:
   playwright-e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      # provide lowercase aliases used elsewhere (safe to include)
+      supabaseUrl: ${{ secrets.SUPABASE_URL }}
+      supabaseKey: ${{ secrets.SUPABASE_ANON_KEY }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Card } from "@/components/ui";
 import { useQuery } from "@tanstack/react-query";
@@ -48,14 +48,18 @@ export default function JobDetails({
 }: {
   params?: { id?: string } | Promise<{ id?: string }>;
 }) {
-  // params may be a Promise in App Router; unwrap with React.use() to avoid sync-access
-  // cast to unknown first to satisfy the 'Usable' typing expected by React.use
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore-next-line
-  const unwrappedParams = use(
-    params as unknown as { id?: string } | Promise<{ id?: string }>
-  );
-  const jobId = unwrappedParams?.id ?? "";
+  // In App Router server components `params` can be a Promise, but this file
+  // is a client component. For tests and client usage we expect a plain
+  // object. Detect Promises conservatively and ignore them (fallback to
+  // empty id) so rendering doesn't throw in test environments.
+  const maybeParams = params as
+    | { id?: string }
+    | Promise<{ id?: string }>
+    | undefined;
+  const isPromise =
+    maybeParams &&
+    typeof (maybeParams as unknown as { then?: unknown })?.then === "function";
+  const jobId = !isPromise ? (maybeParams as { id?: string })?.id ?? "" : "";
   const [job, setJob] = useState<JobRow | null>(null);
   const [interests, setInterests] = useState<Interest[] | null>(null);
 

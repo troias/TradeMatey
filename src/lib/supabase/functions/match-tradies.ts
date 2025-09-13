@@ -1,7 +1,7 @@
-import { createClient } from "@/lib/supabase/client"; // or server if running on server
-const supabase = createClient();
+import { createClient } from "@/lib/supabase/server";
 
 export async function handler(req: Request) {
+  const supabase = createClient();
   const { job_id } = await req.json();
 
   const { data: job } = await supabase

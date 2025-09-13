@@ -1,9 +1,9 @@
 // src/lib/supabase/functions/escrow-payment.ts
 import Stripe from "stripe";
 import { createClient } from "@/lib/supabase/server";
-const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY"));
-const supabase = createClient();
-export async function handler(req) {
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+export async function handler(req: Request) {
+  const supabase = createClient();
   const { booking_id, client_id, amount, is_regional } = await req.json();
   const commissionRate = 0.0333;
   let commission = amount * commissionRate;

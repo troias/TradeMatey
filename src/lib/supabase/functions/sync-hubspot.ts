@@ -1,7 +1,7 @@
-import { createClient } from "@/lib/supabase/client";
-const supabase = createClient();
+import { createClient } from "@/lib/supabase/server";
 
 export default async function handler() {
+  const supabase = createClient();
   const { data } = await supabase.from("users").select("email, role");
   const users = Array.isArray(data) ? (data as unknown[]) : [];
   try {

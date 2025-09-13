@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase/server";
+import requireSupabase from "@/lib/supabase/helpers";
 
 export async function POST(request: Request) {
   try {
+    const supabase = requireSupabase();
     const { jobDescription, location, userId } = await request.json();
     const { data, error } = await supabase
       .from("jobs")
