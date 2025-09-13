@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { useState } from "react";
 
-interface Tradie {
+export interface Tradie {
   id: string;
   location: string;
   bio: string;
@@ -36,27 +35,28 @@ const locationEmojis: Record<string, string> = {
 };
 
 export default function TradieCard({ tradie }: { tradie: Tradie }) {
-  const [isHovered, setIsHovered] = useState(false);
-
   const primarySkill = tradie.skills[0];
   const skillIcon = skillIcons[primarySkill] || "🛠️";
   const locationEmoji = locationEmojis[tradie.location] || "📍";
 
   const isTopTradie = tradie.ratings.average >= 4.7;
-  const certificationCount = Object.keys(tradie.certifications).length;
 
   // Generate star rating
   const fullStars = Math.floor(tradie.ratings.average);
   const hasHalfStar = tradie.ratings.average % 1 >= 0.5;
 
   return (
-    <div
-      className="group relative overflow-hidden rounded-2xl bg-white shadow-md transition-all duration-300 hover:shadow-lg dark:bg-gray-900 border border-gray-100 dark:border-gray-800 min-w-[280px] max-w-[400px] w-full mx-auto p-3 sm:p-4"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      {/* Animated gradient background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 opacity-100 dark:from-gray-900/20 dark:via-gray-800/20 dark:to-gray-700/20 rounded-2xl" />
+    <div className="group relative overflow-hidden rounded-2xl bg-white shadow-md transition-all duration-300 hover:shadow-lg dark:bg-gray-900 border border-gray-100 dark:border-gray-800 min-w-[280px] max-w-[400px] w-full mx-auto p-3 sm:p-4">
+      {/* Animated gradient background - allow pointer events to pass through */}
+      <div className="absolute inset-0 bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 opacity-100 dark:from-gray-900/20 dark:via-gray-800/20 dark:to-gray-700/20 rounded-2xl pointer-events-none" />
+
+      <Link
+        href={`/client/tradie/${tradie.id}`}
+        className="absolute inset-0 z-0"
+        aria-label={`View ${tradie.location} tradie`}
+      >
+        {/* empty link layer to make card clickable */}
+      </Link>
 
       {/* Top badges */}
       <div className="flex flex-col gap-1 mb-3 z-10">

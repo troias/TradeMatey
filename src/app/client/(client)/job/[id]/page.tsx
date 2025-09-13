@@ -1,17 +1,25 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/router";
-import { Card, Button } from "@/components/ui";
+import { usePathname } from "next/navigation";
+import { Card } from "@/components/ui";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 
-export default function JobDetails({ params }: { params: { id: string } }) {
-  const [job, setJob] = useState<any>(null);
+type Milestone = { id: string; title: string; status: string; amount: number };
+type JobRow = { id: string; title: string; description?: string; budget?: number; status?: string; payment_type?: string; milestones?: Milestone[] };
+
+export default function JobDetails({ params }: { params: Record<string, unknown> }) {
+  const [job, setJob] = useState<JobRow | null>(null);
+  const pathname = usePathname();
+  const idFromPath = pathname?.split("/").filter(Boolean).pop();
+  const routeId = (idFromPath as string) || (params && (params as { id?: string }).id);
+
   const { data, error, isLoading } = useQuery({
-    queryKey: ["job", params.id],
+    queryKey: ["job", routeId],
     queryFn: async () => {
-      const res = await fetch(`/api/jobs?job_id=${params.id}`);
+      if (!routeId) throw new Error("Missing job id");
+      const res = await fetch(`/api/jobs?job_id=${routeId}`);
       if (!res.ok) throw new Error("Failed to fetch job");
       return res.json();
     },
@@ -47,7 +55,7 @@ export default function JobDetails({ params }: { params: { id: string } }) {
               Milestones
             </h2>
             <ul className="mt-2 space-y-2">
-              {job.milestones.map((milestone: any) => (
+              {job.milestones?.map((milestone: Milestone) => (
                 <li
                   key={milestone.id}
                   className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"

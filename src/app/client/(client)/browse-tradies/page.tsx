@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import TradieCard from "@/components/TradieCard";
+import TradieCard, { Tradie } from "@/components/TradieCard";
 import { toast } from "react-hot-toast";
 
 export default function BrowseTradies() {
   const [tradeFilter, setTradeFilter] = useState("");
-  const [tradies, setTradies] = useState<any[]>([]);
+  const [tradies, setTradies] = useState<Tradie[]>([]);
 
   const { data, error, isLoading } = useQuery({
     queryKey: ["tradies", tradeFilter],
@@ -17,9 +17,35 @@ export default function BrowseTradies() {
       const res = await fetch(url, { cache: "no-store" });
       console.log("Response status:", res.status);
       if (!res.ok) {
-        const errorText = await res.text();
-        console.error("API error:", errorText);
-        throw new Error(`Failed to fetch tradies: ${res.status} ${errorText}`);
+        // Read raw text first so we can log exact server response even if it's empty or `{}`
+        const raw = await res.text().catch(() => "");
+        let parsed: unknown = null;
+        if (raw) {
+          try {
+            parsed = JSON.parse(raw);
+          } catch {
+            // not JSON, keep raw
+          }
+        }
+
+        // If parsed is an empty object or the raw body is simply "{}", treat as empty
+        const isEmptyObject =
+          parsed &&
+          typeof parsed === "object" &&
+          Object.keys(parsed as Record<string, unknown>).length === 0;
+        const isRawEmptyObject = raw && raw.trim() === "{}";
+        const errorBody =
+          isEmptyObject || isRawEmptyObject ? null : parsed ?? raw ?? null;
+        // Log both raw and parsed for debugging, but show parsed in UI when available
+        console.error("API error (raw body):", raw);
+        console.error("API error (parsed):", parsed);
+        const message =
+          errorBody == null
+            ? `${res.status} ${res.statusText || "(no body)"}`
+            : typeof errorBody === "string"
+            ? errorBody
+            : JSON.stringify(errorBody);
+        throw new Error(`Failed to fetch tradies: ${message}`);
       }
       const json = await res.json();
       console.log("API response:", json);
@@ -40,8 +66,12 @@ export default function BrowseTradies() {
         Browse Tradies
       </h1>
       <div className="flex space-x-4">
+        <label htmlFor="trade-filter" className="sr-only">
+          Filter by trade
+        </label>
         <select
           value={tradeFilter}
+          id="trade-filter"
           onChange={(e) => setTradeFilter(e.target.value)}
           className="px-4 py-2 rounded-md border-gray-300 dark:border-gray-600 focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white"
         >

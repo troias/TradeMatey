@@ -2,19 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import Link from "next/link";
-
-interface Tradie {
-  id: string;
-  location: string;
-  bio: string;
-  user_id: string;
-  certifications: Record<string, string>;
-  ratings: {
-    count: number;
-    average: number;
-  };
-  skills: string[];
-}
+import OfferButtonServerWrapper from "@/components/OfferButtonServerWrapper";
 
 const skillIcons: Record<string, string> = {
   plumbing: "🔧",
@@ -75,13 +63,33 @@ export default async function TradieProfile({
   params: { id: string };
 }) {
   const supabase = createClient();
-  const { data: tradie, error } = await supabase
+
+  // Fetch the tradie row first (avoid relational nested select which can break on some schemas)
+  const { data: tradie, error: tradieError } = await supabase
     .from("tradies")
     .select("*")
     .eq("id", params.id)
     .single();
 
-  if (error || !tradie) return notFound();
+  if (tradieError || !tradie) return notFound();
+
+  // Resolve user display name separately to avoid relying on DB nested selects
+  let userName: string | null = null;
+  try {
+    if (tradie.user_id) {
+      type MinimalUser = { id: string; name?: string } | null;
+      const { data: userData } = (await supabase
+        .from("users")
+        .select("id, name")
+        .eq("id", tradie.user_id)
+        .single()) as { data: MinimalUser };
+      type UserRow = { id: string; name?: string };
+      if (userData && (userData as UserRow).name)
+        userName = (userData as UserRow).name as string;
+    }
+  } catch {
+    // swallow — we already have the tradie row; fallback below will show generic label
+  }
 
   const primarySkill = tradie.skills?.[0] || "general";
   const skillIcon = skillIcons[primarySkill] || "🛠️";
@@ -150,9 +158,13 @@ export default async function TradieProfile({
 
                   {/* Main Info */}
                   <div className="flex-1">
-                    <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-gray-900 via-blue-900 to-purple-900 bg-clip-text text-transparent dark:from-white dark:via-blue-200 dark:to-purple-200 mb-4">
+                    <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-gray-900 via-blue-900 to-purple-900 bg-clip-text text-transparent dark:from-white dark:via-blue-200 dark:to-purple-200 mb-2">
                       {primarySkill.replace("_", " ").toUpperCase()} EXPERT
                     </h1>
+
+                    <p className="text-2xl text-gray-800 dark:text-gray-200 font-semibold mb-4">
+                      {userName || tradie.user_id || "Tradie"}
+                    </p>
 
                     <div className="flex items-center gap-4 mb-6">
                       <div className="flex items-center gap-2 text-xl">
@@ -214,11 +226,10 @@ export default async function TradieProfile({
                   </h2>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {tradie.skills?.map((skill, index) => (
+                    {tradie.skills?.map((skill: string) => (
                       <div
                         key={skill}
                         className="group relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 p-6 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border border-blue-100 dark:border-blue-800"
-                        style={{ animationDelay: `${index * 100}ms` }}
                       >
                         <div className="flex items-center gap-4">
                           <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center text-2xl shadow-lg">
@@ -249,33 +260,35 @@ export default async function TradieProfile({
                   </h2>
 
                   <div className="space-y-4">
-                    {Object.entries(tradie.certifications || {}).map(
-                      ([key, value], index) => (
-                        <div
-                          key={key}
-                          className="group relative overflow-hidden rounded-2xl bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-6 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border border-green-100 dark:border-green-800"
-                          style={{ animationDelay: `${index * 100}ms` }}
-                        >
-                          <div className="flex items-start gap-4">
-                            <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center text-2xl shadow-lg flex-shrink-0">
-                              {certificationIcons[key] || "📜"}
-                            </div>
-                            <div className="flex-1">
-                              <h3 className="font-bold text-gray-900 dark:text-white text-lg mb-1">
-                                {key.replace("_", " ").toUpperCase()}
-                              </h3>
-                              <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                                {value}
-                              </p>
-                            </div>
-                            <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                              ✓
-                            </div>
+                    {(
+                      Object.entries(tradie.certifications || {}) as [
+                        string,
+                        string
+                      ][]
+                    ).map(([key, value]: [string, string]) => (
+                      <div
+                        key={key}
+                        className="group relative overflow-hidden rounded-2xl bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-6 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border border-green-100 dark:border-green-800"
+                      >
+                        <div className="flex items-start gap-4">
+                          <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center text-2xl shadow-lg flex-shrink-0">
+                            {certificationIcons[key] || "📜"}
                           </div>
-                          <div className="absolute inset-0 bg-gradient-to-r from-green-600/10 to-emerald-600/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                          <div className="flex-1">
+                            <h3 className="font-bold text-gray-900 dark:text-white text-lg mb-1">
+                              {key.replace("_", " ").toUpperCase()}
+                            </h3>
+                            <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
+                              {value}
+                            </p>
+                          </div>
+                          <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                            ✓
+                          </div>
                         </div>
-                      )
-                    )}
+                        <div className="absolute inset-0 bg-gradient-to-r from-green-600/10 to-emerald-600/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -330,6 +343,11 @@ export default async function TradieProfile({
                     <button className="w-full border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-bold py-4 px-6 rounded-2xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-300">
                       📅 Schedule Visit
                     </button>
+
+                    {/* Offer button - client component */}
+                    <div className="mt-4">
+                      <OfferButtonServerWrapper tradieId={tradie.id} />
+                    </div>
                   </div>
 
                   {/* Trust indicators */}
