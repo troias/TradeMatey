@@ -44,14 +44,17 @@ export async function POST(request: Request) {
 
     if (jobError) throw new Error(jobError.message);
 
-    const milestoneInserts = milestones.map((m: any) => ({
-      job_id: job.id,
-      title: m.title,
-      description: m.description,
-      amount: m.amount,
-      due_date: m.due_date,
-      status: "pending",
-    }));
+    const milestoneInserts = (Array.isArray(milestones) ? milestones : []).map((m: unknown) => {
+      const mm = m as Record<string, unknown>;
+      return {
+        job_id: job.id,
+        title: typeof mm.title === "string" ? mm.title : "",
+        description: typeof mm.description === "string" ? mm.description : "",
+        amount: typeof mm.amount === "number" ? mm.amount : 0,
+        due_date: typeof mm.due_date === "string" ? mm.due_date : null,
+        status: "pending",
+      };
+    });
 
     const { error: milestoneError } = await supabase
       .from("milestones")

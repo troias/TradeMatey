@@ -6,7 +6,7 @@ import { toast } from "react-hot-toast";
 import { Button } from "@/components/ui";
 
 export function Notifications({ userId }: { userId: string }) {
-  const [notifications, setNotifications] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<unknown[]>([]);
 
   useEffect(() => {
     const fetchNotifications = async () => {
@@ -31,7 +31,8 @@ export function Notifications({ userId }: { userId: string }) {
         },
         (payload) => {
           setNotifications((prev) => [...prev, payload.new]);
-          toast.success(payload.new.message);
+          const pn = payload.new as Record<string, unknown>;
+          toast.success((pn.message as string) ?? "New notification");
         }
       )
       .subscribe();

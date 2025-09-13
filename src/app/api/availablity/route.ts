@@ -1,9 +1,13 @@
-// src/app/api/availability/route.js
-import { supabase } from "../../../lib/supabase";
+// src/app/api/availablity/route.ts
+import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
 // Get current user's availability
-export async function GET(request) {
+export async function GET() {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    return NextResponse.json({ error: "Supabase not configured (missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY)" }, { status: 500 });
+  }
+  const supabase = createClient();
   const {
     data: { user },
     error: authError,
@@ -27,6 +31,10 @@ export async function GET(request) {
 
 // Update availability
 export async function POST(request) {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    return NextResponse.json({ error: "Supabase not configured (missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY)" }, { status: 500 });
+  }
+  const supabase = createClient();
   const {
     data: { user },
     error: authError,

@@ -4,9 +4,9 @@ import { createClient } from "@/lib/supabase/server";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2024-04-10",
 });
-const supabase = createClient();
 
 export async function processMilestonePayment(milestoneId: string) {
+  const supabase = createClient();
   try {
     // Fetch milestone and related job
     const { data: milestone, error: milestoneError } = await supabase

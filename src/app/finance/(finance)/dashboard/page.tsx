@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 
 export default function FinanceDashboard() {
-  const [analytics, setAnalytics] = useState<any>({});
+  const [analytics, setAnalytics] = useState<Record<string, unknown>>({});
 
   const { data, error, isLoading } = useQuery({
     queryKey: ["analytics"],
@@ -17,8 +17,8 @@ export default function FinanceDashboard() {
   });
 
   useEffect(() => {
-    if (data) setAnalytics(data);
-    if (error) toast.error(error.message);
+    if (data) setAnalytics(data as Record<string, unknown>);
+    if (error) toast.error((error as Error).message);
   }, [data, error]);
 
   if (isLoading) return <div className="text-center py-10">Loading...</div>;

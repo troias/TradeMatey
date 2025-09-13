@@ -7,8 +7,7 @@ export async function POST(request: Request) {
   }
   try {
     const body = await request.json();
-    const { user_id, role } = body as { user_id?: string; role?: string };
-    user_id
+  const { user_id, role } = body as { user_id?: string; role?: string };
     if (!user_id || !role) {
       return NextResponse.json({ ok: false, error: "missing_params" }, { status: 400 });
     }
@@ -16,7 +15,8 @@ export async function POST(request: Request) {
     const { error } = await svc.rpc("ensure_primary_role", { p_user_id: user_id, p_role: role });
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true });
-  } catch (err) {
-    return NextResponse.json({ ok: false, error: "exception" }, { status: 500 });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ ok: false, error: msg }, { status: 500 });
   }
 }

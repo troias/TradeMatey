@@ -1,18 +1,7 @@
+import React from "react";
 import Link from "next/link";
-import { useState } from "react";
 
-interface Tradie {
-  id: string;
-  location: string;
-  bio: string;
-  user_id: string;
-  certifications: Record<string, string>;
-  ratings: {
-    count: number;
-    average: number;
-  };
-  skills: string[];
-}
+// Tradie type definition intentionally omitted here; component accepts unknown and narrows at runtime
 
 const skillIcons: Record<string, string> = {
   plumbing: "🔧",
@@ -35,26 +24,28 @@ const locationEmojis: Record<string, string> = {
   Adelaide: "🍷",
 };
 
-export default function TradieCard({ tradie }: { tradie: Tradie }) {
-  const [isHovered, setIsHovered] = useState(false);
-
-  const primarySkill = tradie.skills[0];
+export default function TradieCard({ tradie }: { tradie: unknown }) {
+  const t = tradie as Record<string, unknown>;
+  const id = typeof t.id === "string" ? t.id : typeof t.user_id === "string" ? t.user_id : "";
+  const primarySkill =
+    (Array.isArray(t.skills) ? (t.skills[0] as string) : "general") ||
+    "general";
   const skillIcon = skillIcons[primarySkill] || "🛠️";
-  const locationEmoji = locationEmojis[tradie.location] || "📍";
+  const locationEmoji = locationEmojis[(t.location as string) || ""] || "📍";
 
-  const isTopTradie = tradie.ratings.average >= 4.7;
-  const certificationCount = Object.keys(tradie.certifications).length;
+  const ratings = (t.ratings as Record<string, unknown>) || { average: 0 };
+  const avg =
+    typeof ratings.average === "number"
+      ? ratings.average
+      : Number(ratings.average) || 0;
+  const isTopTradie = avg >= 4.7;
 
   // Generate star rating
-  const fullStars = Math.floor(tradie.ratings.average);
-  const hasHalfStar = tradie.ratings.average % 1 >= 0.5;
+  const fullStars = Math.floor(avg);
+  const hasHalfStar = avg % 1 >= 0.5;
 
-  return (
-    <div
-      className="group relative overflow-hidden rounded-2xl bg-white shadow-md transition-all duration-300 hover:shadow-lg dark:bg-gray-900 border border-gray-100 dark:border-gray-800 min-w-[280px] max-w-[400px] w-full mx-auto p-3 sm:p-4"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
+  const card = (
+    <div className="group relative overflow-hidden rounded-2xl bg-white shadow-md transition-all duration-300 hover:shadow-lg dark:bg-gray-900 border border-gray-100 dark:border-gray-800 min-w-[280px] max-w-[400px] w-full mx-auto p-3 sm:p-4">
       {/* Animated gradient background */}
       <div className="absolute inset-0 bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 opacity-100 dark:from-gray-900/20 dark:via-gray-800/20 dark:to-gray-700/20 rounded-2xl" />
 
@@ -83,7 +74,7 @@ export default function TradieCard({ tradie }: { tradie: Tradie }) {
             <div className="flex items-center gap-1 text-sm">
               <span>{locationEmoji}</span>
               <span className="font-semibold text-gray-600 dark:text-gray-400">
-                {tradie.location}
+                {(t.location as string) ?? ""}
               </span>
               <div className="flex items-center gap-0.5">
                 {[...Array(5)].map((_, i) => (
@@ -105,30 +96,59 @@ export default function TradieCard({ tradie }: { tradie: Tradie }) {
               </div>
             </div>
             <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-              {tradie.bio}
+              {(t.bio as string) ?? ""}
             </p>
           </div>
         </div>
       </div>
 
-      {/* Core Specialties */}
+  {/* Core Specialties */}
       <div className="mb-4 relative z-10">
         <h4 className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1">
           <span>🎯</span> Core Specialties
         </h4>
         <div className="space-y-2">
-          {tradie.skills.map((skill) => (
+          {(Array.isArray(t.skills) ? t.skills : []).map((skill) => (
             <div
               key={skill}
               className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg"
             >
               <span className="text-xl">{skillIcons[skill] || "🛠️"}</span>
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                {skill.replace("_", " ").toUpperCase()}
+                {(skill as string).replace("_", " ").toUpperCase()}
               </span>
             </div>
           ))}
         </div>
+      </div>
+    </div>
+  );
+
+  // If we have an id, make the whole card a link to the tradie's profile.
+  if (id) {
+    return (
+      <Link href={`/client/tradie/${id}`} className="block no-underline">
+        {card}
+      </Link>
+    );
+  }
+  // No id available — render a visible CTA that navigates using user_id when possible.
+  const fallbackId = (t.user_id as string) || '';
+  return (
+    <div>
+      {card}
+      <div className="mt-2 text-center">
+        {fallbackId ? (
+          <a
+            href={`/client/tradie/${fallbackId}`}
+            className="inline-block px-3 py-2 rounded-md bg-indigo-600 text-white text-sm"
+            aria-label="View tradie profile"
+          >
+            View profile
+          </a>
+        ) : (
+          <span className="inline-block px-3 py-2 rounded-md bg-gray-200 text-gray-700 text-sm">No profile available</span>
+        )}
       </div>
     </div>
   );

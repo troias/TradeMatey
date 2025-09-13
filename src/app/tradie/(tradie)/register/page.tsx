@@ -36,9 +36,10 @@ export default function TradieRegisterPage() {
         "Registration successful! Check your email for confirmation."
       );
       router.push("/tradie/login");
-    } catch (err: any) {
-      setError(err.message);
-      toast.error(err.message);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -52,9 +53,10 @@ export default function TradieRegisterPage() {
         options: { redirectTo: `${window.location.origin}/tradie/onboarding` },
       });
       if (error) throw error;
-    } catch (err: any) {
-      setError(err.message);
-      toast.error(err.message);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -72,9 +74,10 @@ export default function TradieRegisterPage() {
       if (error) throw error;
       setMagicLinkSent(true);
       toast.success("Magic link sent! Check your email.");
-    } catch (err: any) {
-      setError(err.message);
-      toast.error(err.message);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }

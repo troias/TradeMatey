@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase/server";
+import requireSupabase from "@/lib/supabase/helpers";
 
 export async function POST(request: Request) {
   try {
+    const supabase = requireSupabase();
     const { tradie_id, rating } = await request.json();
 
     const { data: user } = await supabase
@@ -34,7 +35,8 @@ export async function POST(request: Request) {
       top_tradie: isTopTradie,
       data: data[0],
     });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

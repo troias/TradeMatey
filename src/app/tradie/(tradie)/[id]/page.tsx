@@ -3,19 +3,6 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import Link from "next/link";
 
-interface Tradie {
-  id: string;
-  location: string;
-  bio: string;
-  user_id: string;
-  certifications: Record<string, string>;
-  ratings: {
-    count: number;
-    average: number;
-  };
-  skills: string[];
-}
-
 const skillIcons: Record<string, string> = {
   plumbing: "🔧",
   gas_fitting: "🔥",

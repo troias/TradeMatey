@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     const rpcRes = await supabase
       .rpc("soft_delete_user", rpcArgs)
       .maybeSingle();
-    // @ts-ignore - keep error mapping simple here
+  // @ts-expect-error - keep error mapping simple here
     if (rpcRes?.error) {
       console.error("admin ui soft_delete_user rpc error", rpcRes.error);
       return NextResponse.json({ error: "rpc_error" }, { status: 500 });

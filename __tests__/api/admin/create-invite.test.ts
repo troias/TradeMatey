@@ -1,8 +1,8 @@
-import { createInvite, markInviteUsed } from "../../helpers/apiTestHelpers";
+import { createInvite, markInviteUsed } from "../../../test-helpers/apiTestHelpers";
 
 jest.mock("@/lib/supabase/service", () => ({
   createServiceClient: () => ({
-    from: () => ({ insert: async (row: Record<string, unknown>) => ({ error: null, data: row }), update: async () => ({ error: null }) }),
+  from: () => ({ insert: async (row: Record<string, unknown>) => ({ error: null, data: row }), update: () => ({ eq: async () => ({ error: null }) }) }),
   }),
 }));
 

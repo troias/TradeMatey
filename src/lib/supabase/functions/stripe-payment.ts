@@ -2,9 +2,9 @@ import Stripe from "stripe";
 import { createClient } from "@/lib/supabase/server";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!);
-const supabase = createClient();
 
 export async function handler(req: Request) {
+  const supabase = createClient();
   const { amount, client_id, milestone_id } = await req.json();
   const { data: milestone } = await supabase
     .from("milestones")
