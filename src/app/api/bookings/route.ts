@@ -3,7 +3,7 @@ import { supabase } from "../../../lib/supabase";
 import { NextResponse } from "next/server";
 
 // Get bookings for current user
-export async function GET(request) {
+export async function GET() {
   const {
     data: { user },
     error: authError,
@@ -25,7 +25,7 @@ export async function GET(request) {
 }
 
 // Create a booking
-export async function POST(request) {
+export async function POST(request: Request) {
   const {
     data: { user },
     error: authError,

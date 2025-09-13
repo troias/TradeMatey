@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     const cookieStore = cookies();
     const supabase = createServerClient(cookieStore);
@@ -14,8 +14,9 @@ export async function GET(request: Request) {
 
     if (error) throw error;
     return NextResponse.json(data);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -32,7 +33,8 @@ export async function POST(request: Request) {
 
     if (error) throw error;
     return NextResponse.json(data[0]);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

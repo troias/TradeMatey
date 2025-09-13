@@ -289,7 +289,7 @@ const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async signIn({ user, account, profile }) {
+  async signIn({ user }: { user: User }) {
       const email = user.email;
       if (!email) {
         console.error("signIn error: Email is missing from user object");
@@ -326,14 +326,14 @@ const authOptions: NextAuthOptions = {
       user.id = newUser.user.id;
       return true;
     },
-    async session({ session, user }: { session: Session; user: User }) {
+  async session({ session, user }: { session: Session; user: User }) {
       // Always fetch the latest profile role from Supabase
       try {
         const supabaseSession = createClient(
           process.env.NEXT_PUBLIC_SUPABASE_URL!,
           process.env.SUPABASE_SERVICE_ROLE_KEY!
         );
-        const { data: profile, error } = await supabaseSession
+  const { data: profile } = await supabaseSession
           .from("profiles")
           .select("role")
           .eq("id", user.id)
@@ -344,7 +344,7 @@ const authOptions: NextAuthOptions = {
           role: profile?.role ?? user.role ?? null,
           hasProfile: user.hasProfile ?? false,
         };
-      } catch (err) {
+  } catch {
         session.user = {
           ...session.user,
           id: user.id,
@@ -354,7 +354,7 @@ const authOptions: NextAuthOptions = {
       }
       return session;
     },
-    async redirect({ url, baseUrl }) {
+    async redirect({ baseUrl }) {
       return `${baseUrl}/dashboard`; // ⬅️ Redirects all users to dashboard
     },
   },

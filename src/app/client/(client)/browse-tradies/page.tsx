@@ -7,7 +7,7 @@ import { toast } from "react-hot-toast";
 
 export default function BrowseTradies() {
   const [tradeFilter, setTradeFilter] = useState("");
-  const [tradies, setTradies] = useState<any[]>([]);
+  const [tradies, setTradies] = useState<unknown[]>([]);
 
   const { data, error, isLoading } = useQuery({
     queryKey: ["tradies", tradeFilter],
@@ -65,9 +65,12 @@ export default function BrowseTradies() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {tradies.map((tradie) => (
-            <TradieCard key={tradie.id} tradie={tradie} />
-          ))}
+          {tradies.map((tradie) => {
+            const t = tradie as Record<string, unknown>;
+            // narrow id for key
+            const id = typeof t.id === "string" ? t.id : String(Math.random());
+            return <TradieCard key={id} tradie={t} />;
+          })}
         </div>
       )}
     </div>

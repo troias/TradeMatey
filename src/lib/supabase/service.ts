@@ -8,3 +8,8 @@ export function createServiceClient() {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 }
+
+// Backwards-compatible named export used by routes (was previously named
+// `createServiceSupabase` in some files). Export the same implementation
+// under the expected name to avoid import-time errors.
+export const createServiceSupabase = createServiceClient;

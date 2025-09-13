@@ -29,7 +29,9 @@ afterEach(() => {
 
 test("renders audit rows, supports filtering and pagination", async () => {
   render(<AdminAuditPage />);
-  await waitFor(() => expect(screen.getByText(/Admin Audit/i)).toBeInTheDocument());
+  await waitFor(() =>
+    expect(screen.getByText(/Admin Audit/i)).toBeInTheDocument()
+  );
   // default page should show some rows — check for one of the mocked actions
   await waitFor(() => {
     const matches = screen.getAllByText(/created|redeemed/i);

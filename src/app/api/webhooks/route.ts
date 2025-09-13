@@ -1,7 +1,7 @@
 // src/app/api/webhooks/stripe/route.ts
 import { stripe } from "@/lib/stripe";
 import { supabase } from "@/lib/supabase";
-export async function POST(request) {
+export async function POST(request: Request) {
   const payload = await request.text();
   const sig = request.headers.get("stripe-signature");
   let event;
@@ -11,7 +11,7 @@ export async function POST(request) {
       sig,
       process.env.STRIPE_WEBHOOK_SECRET
     );
-  } catch (err) {
+  } catch {
     return new Response("Webhook Error", { status: 400 });
   }
   if (event.type === "payment_intent.succeeded") {

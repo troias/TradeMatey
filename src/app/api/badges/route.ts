@@ -3,7 +3,7 @@ import { supabase } from "../../../lib/supabase";
 import { NextResponse } from "next/server";
 
 // Get user's badges
-export async function GET(request) {
+export async function GET() {
   const {
     data: { user },
     error: authError,

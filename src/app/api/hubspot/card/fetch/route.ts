@@ -7,7 +7,8 @@ import { NextResponse } from "next/server";
  */
 export async function POST(request: Request) {
   try {
-    const body = (await request.json().catch(() => null)) as any;
+    const raw = await request.json().catch(() => null);
+    const body = raw as unknown;
     // HubSpot sends objectId (contact id) and may include properties in the payload
     const objectId = body?.objectId || body?.objectId?.toString?.();
     const properties = body?.properties || body?.object?.properties || {};
@@ -61,8 +62,8 @@ export async function POST(request: Request) {
     };
 
     return NextResponse.json(card);
-  } catch (e) {
-    console.error("hubspot card fetch error", e);
+  } catch (err: unknown) {
+    console.error("hubspot card fetch error", err);
     return NextResponse.json({ cards: [] }, { status: 200 });
   }
 }

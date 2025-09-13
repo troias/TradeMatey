@@ -28,7 +28,7 @@ describe('payments route', () => {
               eq: (_col: string, _val: any) => ({
                 single: async () => {
                   if (table === 'milestones') {
-                    return { data: { id: 'm1', job_id: 'j1', title: 'Test MS', status: 'pending', jobs: { client_id: 'client-1', region: null } }, error: null };
+                    return { data: { id: 'm1', job_id: 'j1', title: 'Test MS', status: 'pending', jobs: { client_id: 'client-1', region: null }, tradie_id: 'tradie-1' }, error: null };
                   }
                   if (table === 'users') {
                     return { data: { stripe_customer_id: 'cus_test' }, error: null };

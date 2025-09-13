@@ -4,6 +4,18 @@ import { createServerClient } from "@supabase/ssr";
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
 
+  // Ensure a request id for telemetry. If upstream provided one, honor it; otherwise generate.
+  try {
+    const existing = req.headers.get('x-request-id');
+    if (existing) {
+      res.headers.set('x-request-id', existing);
+    } else {
+      // simple UUID fallback
+      const rid = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      res.headers.set('x-request-id', rid);
+    }
+  } catch {}
+
   // Create a Supabase server client that works in Middleware (Edge)
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

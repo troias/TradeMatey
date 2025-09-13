@@ -46,6 +46,8 @@ export default function Dashboard() {
   const router = useRouter();
   const viewDetails = (jobId: string) => router.push(`/client/job/${jobId}`);
 
+  // intentionally omit `supabase` from deps because createClient() should be stable
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const fetchCommissions = async () => {
       try {

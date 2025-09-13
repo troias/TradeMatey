@@ -30,9 +30,29 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json(data || [], { status: 200 });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    // Normalize results: ensure each tradie has `id` and `user_id` fields and
+    // include safe display fields used by the UI.
+    const normalized = (data || []).map((rowRaw: unknown) => {
+      const row = (rowRaw as Record<string, unknown>) || {};
+      const id = (row.id as string) || (row.user_id as string) || String(row.user_id ?? row.email ?? crypto.randomUUID());
+      const user_id = (row.user_id as string) || (row.id as string) || id;
+      return {
+        id,
+        user_id,
+        location: (row.location as string) || null,
+        ratings: (row.ratings as Record<string, unknown>) || { average: 0 },
+        skills: (row.skills as unknown[]) || [],
+        bio: (row.bio as string) || "",
+        name: (row.name as string) || (row.display_name as string) || "",
+        certifications: (row.certifications as unknown[]) || [],
+        top_tradie: Boolean(row.top_tradie),
+      };
+    });
+
+    return NextResponse.json(normalized, { status: 200 });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
@@ -73,8 +93,9 @@ export async function PATCH(request: Request) {
       message: "Availability updated",
       data: data[0],
     });
-  } catch (error) {
-    console.error("Error updating availability:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (err: unknown) {
+    console.error("Error updating availability:", err);
+    const msg = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

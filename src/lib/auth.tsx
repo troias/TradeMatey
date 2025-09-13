@@ -54,16 +54,13 @@ export const authOptions: NextAuthOptions = {
       const { data: roleRows } = await supabase
         .from("user_roles")
         .select("role")
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .eq("user_id", (user as any).id);
+        .eq("user_id", (user as unknown as { id?: string }).id as string);
       const roles = (roleRows || []).map((r: { role: string }) => r.role);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (session.user as any).roles = roles;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (session.user as any).profile_role = (user as any).profile_role;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (session.user as any).has_completed_onboarding = (
-        user as any
+      const su = session.user as Record<string, unknown>;
+      su.roles = roles;
+      su.profile_role = (user as Record<string, unknown>).profile_role;
+      su.has_completed_onboarding = (
+        user as Record<string, unknown>
       ).has_completed_onboarding;
       return session;
     },

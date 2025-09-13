@@ -3,7 +3,7 @@ import { stripe } from "@/lib/stripe";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
-export async function POST(request: Request) {
+export async function POST() {
   try {
     const cookieStore = cookies();
     const supabase = createServerClient(cookieStore);
@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     if (!user)
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { data: profile, error: profileError } = await supabase
+  const { data: profile } = await supabase
       .from("users")
       .select("stripe_customer_id")
       .eq("id", user.id)
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     const cookieStore = cookies();
     const supabase = createServerClient(cookieStore);

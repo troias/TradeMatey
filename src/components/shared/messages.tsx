@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { Button } from "@/components/ui";
+import { toast } from "react-hot-toast";
 
 export function Messages({ userId, jobId }: { userId: string; jobId: string }) {
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<unknown[]>([]);
   const [newMessage, setNewMessage] = useState("");
 
   useEffect(() => {
@@ -59,15 +60,18 @@ export function Messages({ userId, jobId }: { userId: string; jobId: string }) {
   return (
     <div className="p-4">
       <div className="space-y-2 max-h-96 overflow-y-auto">
-        {messages.map((msg) => (
-          <div key={msg.id} className="p-2 border-b">
-            <p className="font-semibold">{msg.sender.name}:</p>
-            <p>{msg.content}</p>
-            <p className="text-sm text-gray-500">
-              {new Date(msg.created_at).toLocaleString()}
-            </p>
-          </div>
-        ))}
+        {messages.map((msg) => {
+          const m = msg as Record<string, unknown>;
+          return (
+            <div key={(m.id as string) ?? Math.random()} className="p-2 border-b">
+              <p className="font-semibold">{((m.sender as Record<string, unknown>)?.name as string) ?? ""}:</p>
+              <p>{(m.content as string) ?? ""}</p>
+              <p className="text-sm text-gray-500">
+                {m.created_at ? new Date(m.created_at as string).toLocaleString() : ""}
+              </p>
+            </div>
+          );
+        })}
       </div>
       <form onSubmit={sendMessage} className="mt-4 flex space-x-2">
         <input
